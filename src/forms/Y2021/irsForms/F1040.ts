@@ -49,6 +49,7 @@ import F2439 from './F2439'
 import F2441 from './F2441'
 import ScheduleC from './ScheduleC'
 import { F1040Error } from 'ustaxes/forms/errors'
+import IRADeductionWorksheet from './worksheets/IRADeductionWorksheet'
 
 export default class F1040 extends Form {
   tag: FormTag = 'f1040'
@@ -88,6 +89,7 @@ export default class F1040 extends Form {
   f8995?: F8995 | F8995A
   studentLoanInterestWorksheet?: StudentLoanInterestWorksheet
   socialSecurityBenefitsWorksheet?: SocialSecurityBenefitsWorksheet
+  IRADeductionWorksheet?: IRADeductionWorksheet
 
   childTaxCreditWorksheet?: ChildTaxCreditWorksheet
 
@@ -160,6 +162,10 @@ export default class F1040 extends Form {
 
     if (this.info.realEstate.length > 0) {
       this.scheduleE = new ScheduleE(this.info)
+    }
+
+    if (this.info.f1099rs(PlanType1099.IRA).length >= 1) {
+      this.IRADeductionWorksheet = new IRADeductionWorksheet(this)
     }
 
     if (this.info.f1098es.length > 0) {

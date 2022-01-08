@@ -96,7 +96,7 @@ export default class Schedule1 extends Form {
   l19a = (): number | undefined => undefined
   l19b = (): string | undefined => undefined
   l19c = (): string | undefined => undefined
-  l20 = (): number | undefined => undefined
+  l20 = (): number | undefined => this.f1040.IRADeductionWorksheet?.deduction()
   l21 = (): number | undefined => this.f1040.studentLoanInterestWorksheet?.l9()
   // Reserved for future use
   l22 = (): string | undefined => undefined

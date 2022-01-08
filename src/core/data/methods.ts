@@ -1,4 +1,4 @@
-import { Responses } from '.'
+import { PlanType1099, Responses } from '.'
 import {
   EstimatedTaxPayments,
   F1098e,
@@ -53,8 +53,15 @@ export default class InformationMethods implements Information {
   f1099Bs = (): Income1099B[] =>
     this.f1099sByType(Income1099Type.B) as Income1099B[]
 
-  f1099rs = (): Income1099R[] =>
-    this.f1099sByType(Income1099Type.R) as Income1099R[]
+  f1099rs = (planType?: PlanType1099): Income1099R[] => {
+    if (planType !== undefined) {
+      return (this.f1099sByType(Income1099Type.R) as Income1099R[]).filter(
+        (r) => r.form.planType == planType
+      )
+    } else {
+      return this.f1099sByType(Income1099Type.R) as Income1099R[]
+    }
+  }
 
   f1099ssas = (): Income1099SSA[] =>
     this.f1099sByType(Income1099Type.SSA) as Income1099SSA[]

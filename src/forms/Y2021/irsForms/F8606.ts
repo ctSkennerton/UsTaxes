@@ -2,10 +2,7 @@ import { Field } from 'ustaxes/core/pdfFiller'
 import { TaxPayer } from 'ustaxes/core/data'
 import Form, { FormTag } from 'ustaxes/core/irsForms/Form'
 
-/**
- * Not implemented yet
- */
-export default class F8888 extends Form {
+export default class F8606 extends Form {
   tp: TaxPayer
   tag: FormTag = 'f8606'
   sequenceIndex = 48
