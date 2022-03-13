@@ -19,11 +19,17 @@ Most income and deduction information from the following forms are supported for
 So far, this project can attach the following schedules to form 1040:
 
 - Schedule 1 (as to Schedule E and 1098-E data only)
+- Schedule 2
 - Schedule 3 (as to excess FICA tax only)
 - Schedule 8812
 - Schedule B
 - Schedule D
 - Schedule E
+- F1040-V
+- F8949 (Uncovered Investment Transactions)
+- F8889 (Health Savings Accounts)
+- F8959 (Additional Medicare Tax)
+- F8960 (Net Investment Income Tax)
 
 ## Supported Credits
 
@@ -76,7 +82,7 @@ This application can be run as either a web application or a standalone desktop 
 
 ### Web application
 
-To run, `npm run start` or `yarn start`.
+To run, `npm install` then `npm run start`
 
 If preferred, a Docker alternative is available:
 
@@ -93,7 +99,7 @@ To stop and remove running containers, run `docker-compose down`.
 
 To run, `npm run desktop`. This requires [rust and cargo][cargo-docs] to be available on PATH. To avoid a browser window being spawned in addition to the desktop window, just set the BROWSER environment variable as in: `BROWSER=none npm run desktop`.
 
-To release, run `npm run desktop-release` or `yarn desktop-release`. This will produce executables for your current environment.
+To release, run `npm run desktop-release`. This will produce executables for your current environment.
 
 [netlify-badge]: https://api.netlify.com/api/v1/badges/41efe456-a85d-4fed-9fcf-55fe4d5aa7fa/deploy-status
 [netlify-url]: https://app.netlify.com/sites/peaceful-joliot-d51349/deploys

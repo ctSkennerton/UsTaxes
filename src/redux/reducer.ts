@@ -1,11 +1,11 @@
 /* eslint-disable indent */
 import { CombinedState, combineReducers, Reducer } from 'redux'
-import { FilingStatus, Information } from 'ustaxes/core/data'
+import { Asset, FilingStatus, Information } from 'ustaxes/core/data'
 import { TaxYear } from 'ustaxes/data'
 import { YearsTaxesState } from '.'
 import { ActionName, Actions } from './actions'
 
-const DEFAULT_TAX_YEAR: TaxYear = 'Y2020'
+const DEFAULT_TAX_YEAR: TaxYear = 'Y2021'
 
 export const blankState: Information = {
   f1099s: [],
@@ -15,8 +15,12 @@ export const blankState: Information = {
   taxPayer: { dependents: [] },
   questions: {},
   f1098es: [],
+  f3921s: [],
+  scheduleK1Form1065s: [],
+  itemizedDeductions: undefined,
   stateResidencies: [],
-  healthSavingsAccounts: []
+  healthSavingsAccounts: [],
+  individualRetirementArrangements: []
 }
 
 const formReducer = (
@@ -259,6 +263,56 @@ const formReducer = (
         f1098es: new1098es
       }
     }
+    case ActionName.ADD_F3921: {
+      return {
+        ...newState,
+        f3921s: [...newState.f3921s, action.formData]
+      }
+    }
+    case ActionName.EDIT_F3921: {
+      const newf3921s = [...newState.f3921s]
+      newf3921s.splice(action.formData.index, 1, action.formData.value)
+      return {
+        ...newState,
+        f3921s: newf3921s
+      }
+    }
+    case ActionName.REMOVE_F3921: {
+      const newf3921s = [...newState.f3921s]
+      newf3921s.splice(action.formData, 1)
+      return {
+        ...newState,
+        f3921s: newf3921s
+      }
+    }
+    case ActionName.ADD_SCHEDULE_K1_F1065: {
+      return {
+        ...newState,
+        scheduleK1Form1065s: [...newState.scheduleK1Form1065s, action.formData]
+      }
+    }
+    case ActionName.EDIT_SCHEDULE_K1_F1065: {
+      const newK1s = [...newState.scheduleK1Form1065s]
+      newK1s.splice(action.formData.index, 1, action.formData.value)
+      return {
+        ...newState,
+        scheduleK1Form1065s: newK1s
+      }
+    }
+    case ActionName.REMOVE_SCHEDULE_K1_F1065: {
+      const newK1s = [...newState.scheduleK1Form1065s]
+      newK1s.splice(action.formData, 1)
+      return {
+        ...newState,
+        scheduleK1Form1065s: newK1s
+      }
+    }
+    case ActionName.SET_ITEMIZED_DEDUCTIONS: {
+      return {
+        ...newState,
+        itemizedDeductions: action.formData
+      }
+    }
     case ActionName.SET_INFO: {
       return {
         ...newState,
@@ -288,6 +342,31 @@ const formReducer = (
       return {
         ...newState,
         healthSavingsAccounts: newHsa
+      }
+    }
+    case ActionName.ADD_IRA: {
+      return {
+        ...newState,
+        individualRetirementArrangements: [
+          ...newState.individualRetirementArrangements,
+          action.formData
+        ]
+      }
+    }
+    case ActionName.EDIT_IRA: {
+      const newIra = [...newState.individualRetirementArrangements]
+      newIra.splice(action.formData.index, 1, action.formData.value)
+      return {
+        ...newState,
+        individualRetirementArrangements: newIra
+      }
+    }
+    case ActionName.REMOVE_IRA: {
+      const newIra = [...newState.individualRetirementArrangements]
+      newIra.splice(action.formData, 1)
+      return {
+        ...newState,
+        individualRetirementArrangements: newIra
       }
     }
     default: {
@@ -321,10 +400,40 @@ const activeYear = (state: TaxYear | undefined, action: Actions): TaxYear => {
   }
 }
 
+const assetReducer = (
+  state: Asset<Date>[] | undefined,
+  action: Actions
+): Asset<Date>[] => {
+  const newState = state ?? []
+
+  switch (action.type) {
+    case ActionName.ADD_ASSET: {
+      return [...newState, action.formData]
+    }
+    case ActionName.ADD_ASSETS: {
+      return [...newState, ...action.formData]
+    }
+    case ActionName.EDIT_ASSET: {
+      const newAssets = [...newState]
+      newAssets.splice(action.formData.index, 1, action.formData.value)
+      return newAssets
+    }
+    case ActionName.REMOVE_ASSET: {
+      const newAssets = [...newState]
+      newAssets.splice(action.formData, 1)
+      return newAssets
+    }
+    default: {
+      return newState
+    }
+  }
+}
+
 const rootReducer: Reducer<
   CombinedState<YearsTaxesState>,
   Actions
 > = combineReducers({
+  assets: assetReducer,
   Y2019: guardByYear('Y2019'),
   Y2020: guardByYear('Y2020'),
   Y2021: guardByYear('Y2021'),

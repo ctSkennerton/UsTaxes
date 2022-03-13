@@ -1,4 +1,5 @@
-import { ReactElement, ReactNode, useState } from 'react'
+import { Fragment, ReactElement, ReactNode, useState } from 'react'
+import _ from 'lodash'
 import { useDispatch, useSelector, TaxesState } from 'ustaxes/redux'
 import { Helmet } from 'react-helmet'
 import { FormProvider, useForm, useFormContext } from 'react-hook-form'
@@ -31,7 +32,11 @@ import { Grid, Box, Button, Paper } from '@material-ui/core'
 import { Work } from '@material-ui/icons'
 import { addW2, editW2, removeW2 } from 'ustaxes/redux/actions'
 import { Alert } from '@material-ui/lab'
-import { enumKeys, parseFormNumberOrThrow } from 'ustaxes/core/util'
+import {
+  enumKeys,
+  parseFormNumber,
+  parseFormNumberOrThrow
+} from 'ustaxes/core/util'
 
 interface IncomeW2UserInput {
   employer?: Employer
@@ -39,13 +44,14 @@ interface IncomeW2UserInput {
   income: string
   medicareIncome: string
   fedWithholding: string
+  ssWages: string
   ssWithholding: string
   medicareWithholding: string
   personRole?: PersonRole.PRIMARY | PersonRole.SPOUSE
   state?: State
   stateWages: string
   stateWithholding: string
-  box12: W2Box12Info
+  box12: W2Box12Info<string>
 }
 
 const blankW2UserInput: IncomeW2UserInput = {
@@ -56,6 +62,7 @@ const blankW2UserInput: IncomeW2UserInput = {
   income: '',
   medicareIncome: '',
   fedWithholding: '',
+  ssWages: '',
   ssWithholding: '',
   medicareWithholding: '',
   stateWages: '',
@@ -71,12 +78,14 @@ const toIncomeW2 = (formData: IncomeW2UserInput): IncomeW2 => ({
   income: parseFormNumberOrThrow(formData.income),
   medicareIncome: parseFormNumberOrThrow(formData.medicareIncome),
   fedWithholding: parseFormNumberOrThrow(formData.fedWithholding),
+  ssWages: parseFormNumberOrThrow(formData.ssWages),
   ssWithholding: parseFormNumberOrThrow(formData.ssWithholding),
   medicareWithholding: parseFormNumberOrThrow(formData.medicareWithholding),
   state: formData.state,
   stateWages: parseFormNumberOrThrow(formData.stateWages),
   stateWithholding: parseFormNumberOrThrow(formData.stateWithholding),
-  personRole: formData.personRole ?? PersonRole.PRIMARY
+  personRole: formData.personRole ?? PersonRole.PRIMARY,
+  box12: _.mapValues(formData.box12, (v) => parseFormNumber(v))
 })
 
 const toIncomeW2UserInput = (data: IncomeW2): IncomeW2UserInput => ({
@@ -85,11 +94,13 @@ const toIncomeW2UserInput = (data: IncomeW2): IncomeW2UserInput => ({
   income: data.income.toString(),
   medicareIncome: data.medicareIncome.toString(),
   fedWithholding: data.fedWithholding.toString(),
+  ssWages: data.ssWages.toString(),
   ssWithholding: data.ssWithholding.toString(),
   medicareWithholding: data.medicareWithholding.toString(),
   state: data.state,
   stateWages: data.stateWages?.toString() ?? '',
-  stateWithholding: data.stateWithholding?.toString() ?? ''
+  stateWithholding: data.stateWithholding?.toString() ?? '',
+  box12: _.mapValues(data.box12, (v) => v?.toString())
 })
 
 const Box12Data = (): ReactElement => {
@@ -102,18 +113,17 @@ const Box12Data = (): ReactElement => {
   const box12Fields = (
     <>
       {enumKeys(W2Box12Code).map((code) => (
-        <>
+        <Fragment key={`box-12-${code}`}>
           <p>
             <strong>Code {code}</strong>: {W2Box12CodeDescriptions[code]}
           </p>
           <LabeledInput
             label={code}
-            key={`box-12{$code}`}
             name={`box12.${code}`}
             patternConfig={Patterns.currency}
             required={false}
           />
-        </>
+        </Fragment>
       ))}
     </>
   )
@@ -135,8 +145,8 @@ const Box12Data = (): ReactElement => {
         .filter((code) => box12[code] !== undefined)
         .map((code) => (
           <li key={`box-12-data-${code}`}>
-            {code}: <Currency plain value={box12[code] as number} /> (
-            {W2Box12CodeDescriptions[code]})
+            {code}: <Currency plain value={parseFormNumber(box12[code]) ?? 0} />{' '}
+            ({W2Box12CodeDescriptions[code]})
           </li>
         ))}
     </ul>
@@ -216,7 +226,7 @@ export default function W2JobInfo(): ReactElement {
         <LabeledInput
           autofocus={true}
           label="Employer name"
-          patternConfig={Patterns.name}
+          required={true}
           name="employer.employerName"
           sizes={{ xs: 12 }}
         />
@@ -245,6 +255,12 @@ export default function W2JobInfo(): ReactElement {
           sizes={{ xs: 12, lg: 6 }}
         />
         <LabeledInput
+          name="ssWages"
+          label={boxLabel('3', 'Social security wages')}
+          patternConfig={Patterns.currency}
+          sizes={{ xs: 12, lg: 6 }}
+        />
+        <LabeledInput
           name="ssWithholding"
           label={boxLabel('4', 'Social security tax withheld')}
           patternConfig={Patterns.currency}
@@ -263,7 +279,7 @@ export default function W2JobInfo(): ReactElement {
           sizes={{ xs: 12, lg: 6 }}
         />
         <USStateDropDown name="state" label={boxLabel('15', 'State')} />
-        <Grid item xs={12} spacing={2}>
+        <Grid item xs={12} lg={12}>
           <Box12Data />
         </Grid>
         <LabeledInput

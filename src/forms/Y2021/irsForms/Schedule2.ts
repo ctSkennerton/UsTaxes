@@ -17,12 +17,12 @@ export default class Schedule2 extends Form {
   }
 
   // Part I: Tax
-  l1 = (): number | undefined => undefined // TODO: Alternative Minimum Tax (form 6251)
+  l1 = (): number | undefined => this.f1040.f6251?.l11()
   l2 = (): number | undefined => undefined // TODO: excess advance premium tax credit repayment (form 8962)
   l3 = (): number => sumFields([this.l1(), this.l2()])
 
   // Part II: Other Tax
-  l4 = (): number | undefined => undefined // TODO: self-employment tax (schedule SE)
+  l4 = (): number | undefined => this.f1040.scheduleSE?.l12() // self-employment tax (schedule SE)
   l5 = (): number | undefined => undefined // TODO: unreported FICA tax
   l6 = (): number | undefined => undefined // TODO: additional tax on retirement accounts
   l7 = (): number | undefined => undefined // TODO: total additional ss and medicare tax
@@ -80,7 +80,7 @@ export default class Schedule2 extends Form {
   // year you were a nonresident alien from Form 1040-NR
   l17o = (): number | undefined => undefined
   // p Any interest from Form 8621, line 16f, relating to distributions
-  // from, and dispositions of, stock of a section 1291 fund.. 17p
+  // from, and disassets of, stock of a section 1291 fund.. 17p
   l17p = (): number | undefined => undefined
   // q Any interest from Form 8621, line 24
   l17q = (): number | undefined => undefined

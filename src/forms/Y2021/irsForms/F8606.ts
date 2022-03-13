@@ -1,6 +1,7 @@
 import { Field } from 'ustaxes/core/pdfFiller'
 import { TaxPayer } from 'ustaxes/core/data'
 import Form, { FormTag } from 'ustaxes/core/irsForms/Form'
+import { sumFields } from 'ustaxes/core/irsForms/util'
 
 export default class F8606 extends Form {
   tp: TaxPayer
@@ -16,11 +17,11 @@ export default class F8606 extends Form {
 
   l2 = (): number | undefined => undefined
 
-  l3 = (): number | undefined => undefined
+  l3 = (): number => (this.l1() ?? 0) + (this.l2() ?? 0)
 
   l4 = (): number | undefined => undefined
 
-  l5 = (): number | undefined => undefined
+  l5 = (): number => this.l3() - (this.l4() ?? 0)
 
   l6 = (): number | undefined => undefined
 
@@ -28,17 +29,17 @@ export default class F8606 extends Form {
 
   l8 = (): number | undefined => undefined
 
-  l9 = (): number | undefined => undefined
+  l9 = (): number => sumFields([this.l6(), this.l7(), this.l8()])
 
-  l10 = (): number | undefined => undefined
+  l10 = (): number => this.l5() / this.l9()
 
-  l11 = (): number | undefined => undefined
+  l11 = (): number => (this.l8() ?? 0) * this.l10()
 
-  l12 = (): number | undefined => undefined
+  l12 = (): number => (this.l7() ?? 0) * this.l10()
 
-  l13 = (): number | undefined => undefined
+  l13 = (): number => this.l11() + this.l12()
 
-  l14 = (): number | undefined => undefined
+  l14 = (): number => this.l3() - this.l13()
 
   l15a = (): number | undefined => undefined
 

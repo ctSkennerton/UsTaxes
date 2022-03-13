@@ -1,3 +1,5 @@
+import { enumKeys } from '../util'
+
 export enum PersonRole {
   PRIMARY = 'PRIMARY',
   SPOUSE = 'SPOUSE',
@@ -65,6 +67,7 @@ export interface IncomeW2 {
   income: number
   medicareIncome: number
   fedWithholding: number
+  ssWages: number
   ssWithholding: number
   medicareWithholding: number
   employer?: Employer
@@ -102,6 +105,7 @@ export interface F1099IntData {
 export interface F1099DivData {
   dividends: number
   qualifiedDividends: number
+  totalCapitalGainsDistributions: number
 }
 /*
  TODO: Add in logic for various different distributions
@@ -113,21 +117,20 @@ export enum PlanType1099 {
    * simplified employee pension (SEP) IRA,
    * and a savings incentive match plan for employees (SIMPLE) IRA
    */
-  IRA = 'IRA',
-  RothIRA = 'RothIRA',
-  SepIRA = 'SepIRA',
-  SimpleIRA = 'SimpleIRA',
+  // IRA = 'IRA',
+  // RothIRA = 'RothIRA',
+  // SepIRA = 'SepIRA',
+  // SimpleIRA = 'SimpleIRA',
   /* Pension and annuity payments include distributions from 401(k), 403(b), and governmental 457(b) plans.
    */
   Pension = 'Pension'
 }
 
 export const PlanType1099Texts = {
-  [PlanType1099.IRA]: 'traditional IRA',
-  [PlanType1099.RothIRA]: 'Roth IRA',
-  [PlanType1099.SepIRA]: 'simplified employee pension (SEP) IRA',
-  [PlanType1099.SimpleIRA]:
-    'savings incentive match plan for employees (SIMPLE) IRA',
+  // [PlanType1099.IRA]:'traditional IRA',
+  // [PlanType1099.RothIRA]: 'Roth IRA',
+  // [PlanType1099.SepIRA]: 'simplified employee pension (SEP) IRA',
+  // [PlanType1099.SimpleIRA]: 'savings incentive match plan for employees (SIMPLE) IRA',
   [PlanType1099.Pension]: '401(k), 403(b), or 457(b) plan'
 }
 
@@ -187,7 +190,7 @@ export const W2Box12CodeDescriptions: { [key in W2Box12Code]: string } = {
   A: 'Uncollected social security or RRTA tax on tips.',
   B: 'Uncollected Medicare tax on tips.',
   C: 'Taxable cost of group-term life insurance over $50,000.',
-  D: 'Elective deferrals under a section 401(k) cash or deferred arrangement (plan).',
+  D: 'Elective deferrals under a section 401(k) cash or deferred arrangement plan.',
   E: 'Elective deferrals under a section 403(b) salary reduction agreement.',
   F: 'Elective deferrals under a section 408(k)(6) salary reduction SEP.',
   G: 'Elective deferrals and employer contributions (including nonelective deferrals) to any governmental or nongovernmental section 457(b) deferred compensation plan.',
@@ -215,7 +218,7 @@ export const W2Box12CodeDescriptions: { [key in W2Box12Code]: string } = {
   HH: 'Aggregate deferrals under section 83(i) elections as of the close of the calendar year.'
 }
 
-export type W2Box12Info = { [key in W2Box12Code]?: number }
+export type W2Box12Info<A = number> = { [key in W2Box12Code]?: A }
 
 export interface HealthSavingsAccount<DateType = string> {
   label: string
@@ -226,6 +229,51 @@ export interface HealthSavingsAccount<DateType = string> {
   endDate: DateType
   totalDistributions: number
   qualifiedDistributions: number
+}
+
+export enum IraPlanType {
+  IRA = 'IRA',
+  RothIRA = 'RothIRA',
+  SepIRA = 'SepIRA',
+  SimpleIRA = 'SimpleIRA'
+}
+
+export const IraPlanTypeTexts = {
+  [IraPlanType.IRA]: 'Traditional IRA',
+  [IraPlanType.RothIRA]: 'Roth IRA',
+  [IraPlanType.SepIRA]: 'Simplified employee pension (SEP) IRA',
+  [IraPlanType.SimpleIRA]:
+    'Savings incentive match plan for employees (SIMPLE) IRA'
+}
+
+export type IraPlanName = keyof typeof IraPlanType
+
+export const iraPlanNames: IraPlanName[] = enumKeys(IraPlanType)
+// export const iraPlanNames: IraPlanName[] = [
+//   'IRA',
+//   'RothIRA',
+//   'SepIRA',
+//   'SimpleIRA'
+// ]
+
+export interface Ira {
+  payer: string
+  personRole: PersonRole.PRIMARY | PersonRole.SPOUSE
+  // fields about distributions from form 1099-R
+  grossDistribution: number // 1099-R box 1
+  taxableAmount: number // 1099-R box 2a
+  taxableAmountNotDetermined: boolean // 1099-R box 2b
+  totalDistribution: boolean // 1099-R box 2b
+  federalIncomeTaxWithheld: number // 1099-R box 4
+  planType: IraPlanType
+  // fields about contributions from form 5498
+  contributions: number // contributions depending on the plan type
+  rolloverContributions: number // 5498 box 2
+  rothIraConversion: number // 5498 box 3
+  recharacterizedContributions: number // 5498 box 4
+  requiredMinimumDistributions: number // 5498 box 12b
+  lateContributions: number // 5498 box 13a
+  repayments: number // 5498 box 14a
 }
 
 export enum FilingStatus {
@@ -337,6 +385,47 @@ export interface F1098e {
   interest: number
 }
 
+export interface F3921 {
+  name: string
+  personRole: PersonRole.PRIMARY | PersonRole.SPOUSE
+  exercisePricePerShare: number
+  fmv: number
+  numShares: number
+}
+
+// See https://www.irs.gov/instructions/i1065sk1
+export interface ScheduleK1Form1065 {
+  personRole: PersonRole.PRIMARY | PersonRole.SPOUSE
+  partnershipName: string
+  partnershipEin: string
+  partnerOrSCorp: 'P' | 'S'
+  isForeign: boolean
+  isPassive: boolean
+  ordinaryBusinessIncome: number // Schedule E (Form 1040), line 28, column (i) or (k).
+  guaranteedPaymentsForServices: number // Schedule E (Form 1040), line 28, column (k)
+  guaranteedPaymentsForCapital: number // Schedule E (Form 1040), line 28, column (k)
+  selfEmploymentEarningsA: number // Schedule SE (Form 1040)
+  selfEmploymentEarningsB: number // Schedule SE (Form 1040)
+  selfEmploymentEarningsC: number // Schedule SE (Form 1040)
+  distributionsCodeAAmount: number // If the amount shown as code A exceeds the adjusted basis of your partnership interest immediately before the distribution, the excess is treated as gain from the sale or exchange of your partnership interest. Generally, this gain is treated as gain from the sale of a capital asset and should be reported on Form 8949 and the Schedule D for your return.
+  section199AQBI: number // Form 8995 or 8995-A
+}
+
+export interface ItemizedDeductions {
+  medicalAndDental: string | number
+  stateAndLocalTaxes: string | number
+  isSalesTax: boolean
+  stateAndLocalRealEstateTaxes: string | number
+  stateAndLocalPropertyTaxes: string | number
+  interest8a: string | number
+  interest8b: string | number
+  interest8c: string | number
+  interest8d: string | number
+  investmentInterest: string | number
+  charityCashCheck: string | number
+  charityOther: string | number
+}
+
 export type State =
   | 'AL'
   | 'AK'
@@ -430,9 +519,43 @@ export interface Information {
   realEstate: Property[]
   estimatedTaxes: EstimatedTaxPayments[]
   f1098es: F1098e[]
+  f3921s: F3921[]
+  scheduleK1Form1065s: ScheduleK1Form1065[]
+  itemizedDeductions: ItemizedDeductions | undefined
   refund?: Refund
   taxPayer: TaxPayer
   questions: Responses
   stateResidencies: StateResidency[]
   healthSavingsAccounts: HealthSavingsAccount[]
+  individualRetirementArrangements: Ira[]
+}
+
+/**
+ * An asset can be anything that is transactable, such as a stock,
+ * bond, mutual fund, real estate, or cryptocurrency, which is not reported
+ * on 1099-B. A position always has an open date. A position may
+ * be sold, at which time its gain or loss will be reported,
+ * or it may be gifted to another person, at which time its
+ * gain or loss will not be reported.
+ *
+ * An asset can be carried across multiple tax years,
+ * so it should not be a sibling rather than a member of `Information`.
+ *
+ * If a position is real estate, then it has a state, which will
+ * require state apportionment.
+ *
+ * "Closing an asset" can result in a long-term or short-term capital
+ * gain. An asset is closed when it gets a closeDate.
+ */
+export type AssetType = 'Security' | 'Real Estate'
+export interface Asset<DateType = Date> {
+  name: string
+  positionType: AssetType
+  openDate: DateType
+  closeDate?: DateType
+  giftedDate?: DateType
+  openPrice: number
+  closePrice?: number
+  quantity: number
+  state?: State
 }
