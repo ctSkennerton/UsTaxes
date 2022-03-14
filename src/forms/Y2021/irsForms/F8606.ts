@@ -1,17 +1,23 @@
 import { Field } from 'ustaxes/core/pdfFiller'
-import { TaxPayer } from 'ustaxes/core/data'
+import { IraPlanType, TaxPayer } from 'ustaxes/core/data'
 import Form, { FormTag } from 'ustaxes/core/irsForms/Form'
 import { sumFields } from 'ustaxes/core/irsForms/util'
+import { Ira } from 'ustaxes/core/data'
 
 export default class F8606 extends Form {
   tp: TaxPayer
   tag: FormTag = 'f8606'
   sequenceIndex = 48
+  iras: Ira[]
 
-  constructor(tp: TaxPayer) {
+  constructor(tp: TaxPayer, iras: Ira[]) {
     super()
     this.tp = tp
+    this.iras = iras
   }
+
+  taxableAmount = (): number =>
+    sumFields([this.l15c(), this.l18(), this.l25c()])
 
   l1 = (): number | undefined => undefined
 
@@ -23,11 +29,49 @@ export default class F8606 extends Form {
 
   l5 = (): number => this.l3() - (this.l4() ?? 0)
 
-  l6 = (): number | undefined => undefined
+  /*Enter the value of all Traditional, SIMPLE, SEP IRAs as of Dec 31st of the tax year */
+  l6 = (): number =>
+    this.iras.reduce((res, i) => {
+      if (
+        i.planType == IraPlanType.IRA ||
+        i.planType == IraPlanType.SepIRA ||
+        i.planType == IraPlanType.SimpleIRA
+      ) {
+        return res + (i.valueAtYearEnd ?? 0)
+      } else {
+        return 0
+      }
+    }, 0)
 
-  l7 = (): number | undefined => undefined
+  /* Distributions from Traditional, SIMPLE, SEP IRAs*/
+  l7 = (): number =>
+    this.iras.reduce((res, i) => {
+      if (
+        i.planType == IraPlanType.IRA ||
+        i.planType == IraPlanType.SepIRA ||
+        i.planType == IraPlanType.SimpleIRA
+      ) {
+        // TODO: check if gross distribution box already removes things like rollovers
+        // or whether we need to do that subtraction here
+        return res + (i.grossDistribution ?? 0)
+      } else {
+        return 0
+      }
+    }, 0)
 
-  l8 = (): number | undefined => undefined
+  /* Conversions to Roth IRA from traditional, SIMPPE, SEP IRAs */
+  l8 = (): number =>
+    this.iras.reduce((res, i) => {
+      if (
+        i.planType == IraPlanType.IRA ||
+        i.planType == IraPlanType.SepIRA ||
+        i.planType == IraPlanType.SimpleIRA
+      ) {
+        return res + (i.rothIraConversion ?? 0)
+      } else {
+        return 0
+      }
+    }, 0)
 
   l9 = (): number => sumFields([this.l6(), this.l7(), this.l8()])
 
@@ -48,20 +92,33 @@ export default class F8606 extends Form {
 
   l15c = (): number | undefined => this.l15a() - (this.l15b() ?? 0)
 
-  l16 = (): number | undefined => undefined
+  l16 = (): number | undefined => this.l8()
 
-  l17 = (): number | undefined => undefined
+  l17 = (): number | undefined => this.l11()
 
   l18 = (): number => (this.l16() ?? 0) - (this.l17() ?? 0)
 
-  l19 = (): number | undefined => undefined
+  //TODO: There are a number of caveates and special cases where distributions
+  // don't count like those made after age 59.5 or for qualtified disaster distributions
+  l19 = (): number | undefined =>
+    this.iras.reduce((res, i) => {
+      if (i.planType == IraPlanType.RothIRA) {
+        return res + (i.grossDistribution ?? 0)
+      } else {
+        return 0
+      }
+    }, 0)
 
+  // TODO: qualified first-home buyer distributions
   l20 = (): number | undefined => undefined
 
   l21 = (): number => Math.max(0, (this.l19() ?? 0) - (this.l20() ?? 0))
 
+  //TODO: This is a complicated line requiring contribution info from 1998-2021
+  // no easy way to add this in now.
   l22 = (): number | undefined => undefined
 
+  // TODO: Also need to fill lines 1-4 in 5329
   l23 = (): number => Math.max(0, (this.l21() ?? 0) - (this.l22() ?? 0))
 
   l24 = (): number | undefined => undefined

@@ -274,6 +274,8 @@ export interface Ira {
   requiredMinimumDistributions: number // 5498 box 12b
   lateContributions: number // 5498 box 13a
   repayments: number // 5498 box 14a
+  // additional fields not in either form
+  valueAtYearEnd: number // The value of the account on Dec 31st. Needed for form 8606
 }
 
 export enum FilingStatus {

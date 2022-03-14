@@ -57,6 +57,7 @@ import F8949 from './F8949'
 import F6251 from './F6251'
 import F4137 from './F4137'
 import F8919 from './F8919'
+import F8606 from './F8606'
 
 export default class F1040 extends Form {
   tag: FormTag = 'f1040'
@@ -88,6 +89,7 @@ export default class F1040 extends Form {
   f4972?: F4972
   f5695?: F5695
   f6251?: F6251
+  f8606?: F8606
   f8814?: F8814
   f8863?: F8863
   f8888?: F8888
@@ -141,6 +143,7 @@ export default class F1040 extends Form {
       this.f4972,
       this.f5695,
       this.f6251,
+      this.f8606,
       this.f8814,
       this.f8888,
       this.f8889,
@@ -204,7 +207,7 @@ export default class F1040 extends Form {
       this.scheduleE = new ScheduleE(this.info)
     }
 
-    if (this.info.f1099rs(PlanType1099.IRA).length >= 1) {
+    if (this.info.individualRetirementArrangements.length >= 1) {
       this.IRADeductionWorksheet = new IRADeductionWorksheet(this)
     }
     if (
@@ -398,7 +401,7 @@ export default class F1040 extends Form {
     this.info.individualRetirementArrangements.reduce(
       (r, i) => r + i.taxableAmount,
       0
-    )
+    ) + (this.f8606?.taxableAmount() ?? 0)
 
   totalGrossDistributionsFrom1099R = (planType: PlanType1099): number =>
     this.info

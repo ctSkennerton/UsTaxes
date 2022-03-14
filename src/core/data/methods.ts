@@ -1,7 +1,7 @@
-import { PlanType1099, Responses } from '.'
 import {
   F3921,
   Ira,
+  PlanType1099,
   ItemizedDeductions,
   Responses,
   ScheduleK1Form1065
