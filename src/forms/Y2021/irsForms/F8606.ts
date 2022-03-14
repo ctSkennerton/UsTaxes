@@ -41,35 +41,37 @@ export default class F8606 extends Form {
 
   l14 = (): number => this.l3() - this.l13()
 
-  l15a = (): number | undefined => undefined
+  l15a = (): number => (this.l7() ?? 0) - this.l12()
 
+  // TODO: Need form 8915-D and 8915-F
   l15b = (): number | undefined => undefined
 
-  l15c = (): number | undefined => undefined
+  l15c = (): number | undefined => this.l15a() - (this.l15b() ?? 0)
 
   l16 = (): number | undefined => undefined
 
   l17 = (): number | undefined => undefined
 
-  l18 = (): number | undefined => undefined
+  l18 = (): number => (this.l16() ?? 0) - (this.l17() ?? 0)
 
   l19 = (): number | undefined => undefined
 
   l20 = (): number | undefined => undefined
 
-  l21 = (): number | undefined => undefined
+  l21 = (): number => Math.max(0, (this.l19() ?? 0) - (this.l20() ?? 0))
 
   l22 = (): number | undefined => undefined
 
-  l23 = (): number | undefined => undefined
+  l23 = (): number => Math.max(0, (this.l21() ?? 0) - (this.l22() ?? 0))
 
   l24 = (): number | undefined => undefined
 
-  l25a = (): number | undefined => undefined
+  l25a = (): number => Math.max(0, this.l23() - (this.l24() ?? 0))
 
+  // TODO: form 8915-D and 8915-F
   l25b = (): number | undefined => undefined
 
-  l25c = (): number | undefined => undefined
+  l25c = (): number | undefined => this.l25a() - (this.l25b() ?? 0)
 
   fields = (): Field[] => [
     undefined,
