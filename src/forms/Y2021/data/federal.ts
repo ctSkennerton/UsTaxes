@@ -307,3 +307,49 @@ export const SSBenefits: SocialSecurityBenefitsDef = {
     [FilingStatus.MFJ]: { l8: 32000, l10: 12000 }
   }
 }
+
+interface amtExcemptions {
+  exemptionAmount: number
+  excemptionPhaseoutAmount: number
+  upperExcemptionAmount: number
+  bracket: number
+}
+
+type amtData = {
+  [k in FilingStatus]: amtExcemptions
+}
+
+export const AMTTaxRate = 0.26
+
+export const AMT: amtData = {
+  [FilingStatus.HOH]: {
+    exemptionAmount: 72900,
+    excemptionPhaseoutAmount: 518400,
+    upperExcemptionAmount: 810000,
+    bracket: 197900
+  },
+  [FilingStatus.S]: {
+    exemptionAmount: 72900,
+    excemptionPhaseoutAmount: 518400,
+    upperExcemptionAmount: 810000,
+    bracket: 197900
+  },
+  [FilingStatus.MFJ]: {
+    exemptionAmount: 113400,
+    excemptionPhaseoutAmount: 1036800,
+    upperExcemptionAmount: 1490400,
+    bracket: 197900
+  },
+  [FilingStatus.W]: {
+    exemptionAmount: 113400,
+    excemptionPhaseoutAmount: 1036800,
+    upperExcemptionAmount: 1490400,
+    bracket: 197900
+  },
+  [FilingStatus.MFS]: {
+    exemptionAmount: 56700,
+    excemptionPhaseoutAmount: 518400,
+    upperExcemptionAmount: 745200,
+    bracket: 98950
+  }
+}

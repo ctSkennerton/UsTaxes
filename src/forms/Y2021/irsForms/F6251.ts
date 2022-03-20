@@ -5,6 +5,67 @@ import F1040 from './F1040'
 import SDQualifiedAndCapGains from './worksheets/SDQualifiedAndCapGains'
 import log from 'ustaxes/core/log'
 
+import { AMT, AMTTaxRate } from '../data/federal'
+import { sumFields } from 'ustaxes/core/irsForms/util'
+
+const excemptionAmountForFilingStatus = (
+  status: FilingStatus | undefined
+): number => {
+  if (status === undefined) {
+    throw new Error('Filing status is undefined')
+  }
+  switch (status) {
+    case FilingStatus.S:
+      return AMT.S.exemptionAmount
+    case FilingStatus.HOH:
+      return AMT.HOH.exemptionAmount
+    case FilingStatus.MFS:
+      return AMT.MFS.exemptionAmount
+    case FilingStatus.W:
+      return AMT.W.exemptionAmount
+    case FilingStatus.MFJ:
+      return AMT.MFJ.exemptionAmount
+  }
+}
+
+const excemptionPhaseoutAmountForFilingStatus = (
+  status: FilingStatus | undefined
+): number => {
+  if (status === undefined) {
+    throw new Error('Filing status is undefined')
+  }
+  switch (status) {
+    case FilingStatus.S:
+      return AMT.S.excemptionPhaseoutAmount
+    case FilingStatus.HOH:
+      return AMT.HOH.excemptionPhaseoutAmount
+    case FilingStatus.MFS:
+      return AMT.MFS.excemptionPhaseoutAmount
+    case FilingStatus.W:
+      return AMT.W.excemptionPhaseoutAmount
+    case FilingStatus.MFJ:
+      return AMT.MFJ.excemptionPhaseoutAmount
+  }
+}
+
+const bracketForFilingStatus = (status: FilingStatus | undefined): number => {
+  if (status === undefined) {
+    throw new Error('Filing status is undefined')
+  }
+  switch (status) {
+    case FilingStatus.S:
+      return AMT.S.bracket
+    case FilingStatus.HOH:
+      return AMT.HOH.bracket
+    case FilingStatus.MFS:
+      return AMT.MFS.bracket
+    case FilingStatus.W:
+      return AMT.W.bracket
+    case FilingStatus.MFJ:
+      return AMT.MFJ.bracket
+  }
+}
+
 const unimplemented = (message: string): void =>
   log.warn(`[F6251] unimplemented ${message}`)
 
@@ -18,6 +79,50 @@ export default class F6251 extends Form {
     super()
     this.state = state
     this.f1040 = f1040
+  }
+
+  /* Schedule 2 Line 1 also contains a worksheet with information
+     whether you need to fill out form 6251
+   */
+  schedule2Line1Worksheet = (): boolean => {
+    const filingStatus = this.state.taxPayer.filingStatus
+    const l3 = this.f1040.l11() - (this.f1040.l13() ?? 0)
+    const l4 = sumFields([
+      this.f1040.schedule1?.l1(),
+      this.f1040.schedule1?.l8z()
+    ])
+    const l5 = l3 - l4
+    const l6 = excemptionAmountForFilingStatus(filingStatus)
+    if (l5 > l6) {
+      return false
+    }
+    const l7 = l5 - l6
+    const l8 = excemptionPhaseoutAmountForFilingStatus(filingStatus)
+
+    let l11: number | undefined = undefined
+    if (l5 > l8) {
+      l11 = l7
+    } else {
+      const l9 = l5 - l8
+      const l10 = Math.min(l9 * 0.25, l6)
+      l11 = l10 + l7
+    }
+    let l12: number | undefined = undefined
+    if (l11 > bracketForFilingStatus(filingStatus)) {
+      return true
+    } else {
+      l12 = l11 * AMTTaxRate
+    }
+    /**
+     * Add Form 1040, 1040-SR, or 1040-NR, line 16 (TODO minus any tax from Form 4972),
+     * and Schedule 2, line 2. (TODO If you used Schedule J to figure your tax on the entry space on Form 1040,
+     * 1040-SR, or 1040-NR, line 16, refigure that tax without using Schedule J before including it in this calculation)
+     */
+    const l13 = sumFields([this.f1040.l16(), this.f1040.schedule2?.l2()])
+    if (l12 > l13) {
+      return true
+    }
+    return false
   }
 
   isNeeded = (): boolean => {
@@ -56,6 +161,9 @@ export default class F6251 extends Form {
     if (l2cTo3Total < 0 && (this.l7(-l2cTo3Total) ?? 0) > this.l10())
       return true
 
+    if (this.schedule2Line1Worksheet()) {
+      return true
+    }
     return false
   }
 
