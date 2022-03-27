@@ -485,3 +485,8 @@ export class CA540 extends Form {
     undefined
   ]
 }
+
+const makeCA540 = (info: Information, f1040: F1040): CA540 =>
+  new CA540(info, f1040)
+
+export default makeCA540

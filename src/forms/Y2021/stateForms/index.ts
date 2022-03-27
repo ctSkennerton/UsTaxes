@@ -2,6 +2,7 @@ import F1040 from '../irsForms/F1040'
 import { State, Information } from 'ustaxes/core/data'
 import StateForm from 'ustaxes/core/stateForms/Form'
 import il1040 from './IL/IL1040'
+import ca540 from './CA/CA540'
 import { Either } from 'ustaxes/core/util'
 import { createStateReturn as createStateReturnF } from '../../StateForms'
 import { StateFormError } from '../../StateForms'
@@ -21,7 +22,8 @@ export const noFilingRequirementStates: State[] = [
 export const stateForms: {
   [K in State]?: (info: Information, f1040: F1040) => StateForm
 } = {
-  IL: il1040
+  IL: il1040,
+  CA: ca540
 }
 
 export const createStateReturn = (
