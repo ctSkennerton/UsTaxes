@@ -6,7 +6,8 @@ import {
   AccountType,
   FilingStatus,
   Information,
-  State
+  State,
+  Dependent
 } from 'ustaxes/core/data'
 import parameters from './Parameters'
 
@@ -22,7 +23,7 @@ export class CA540 extends Form {
     super()
     this.info = info
     this.f1040 = f1040
-    this.formName = 'CA-540'
+    this.formName = '540'
     this.state = 'CA'
     this.methods = new FormMethods(this)
   }
