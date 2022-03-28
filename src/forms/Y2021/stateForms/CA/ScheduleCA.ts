@@ -55,7 +55,6 @@ export class ScheduleCA extends Form {
     // TODO: Exclusion for compensation from exercising a California Qualified Stock Option (CQSO)
 
     // Employer health savings account (HSA) contribution
-
     additions += this.f1040
       .validW2s()
       .map((w2) => w2.box12?.W ?? 0)
