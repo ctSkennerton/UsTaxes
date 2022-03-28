@@ -10,6 +10,7 @@ import {
   Dependent
 } from 'ustaxes/core/data'
 import parameters from './Parameters'
+import { ScheduleCA } from './ScheduleCA'
 
 export class CA540 extends Form {
   info: Information
@@ -18,6 +19,7 @@ export class CA540 extends Form {
   state: State
   formOrder = 0
   methods: FormMethods
+  scheduleCA: ScheduleCA
 
   constructor(info: Information, f1040: F1040) {
     super()
@@ -26,11 +28,13 @@ export class CA540 extends Form {
     this.formName = '540'
     this.state = 'CA'
     this.methods = new FormMethods(this)
+
+    this.scheduleCA = new ScheduleCA(this.info, this.f1040)
   }
 
   attachments = (): Form[] => {
     // const pmt = this.payment()
-    const result: Form[] = []
+    const result: Form[] = [this.scheduleCA]
     // if ((pmt ?? 0) > 0) {
     //   result.push(this.il1040V)
     // }
@@ -147,15 +151,51 @@ export class CA540 extends Form {
 
   l13 = (): number => this.f1040.l11()
 
-  l14 = (): number | undefined => undefined
+  // Instructions from schedule CA:
+  // transfer the amount from:
+  // Line 27, column B to Form 540, line 14
+  // If column B is a negative number, transfer the amount as a positive number to Form 540, line 16.
+  // Line 27, column C to Form 540, line 16
+  // If column C is a negative number, transfer the amount as a positive number to Form 540, line 14.
+  l14 = (): number => {
+    if (this.scheduleCA.part1sectionCline27colB() > 0) {
+      return this.scheduleCA.part1sectionCline27colB()
+    } else if (this.scheduleCA.part1sectionCline27colC() < 0) {
+      return Math.abs(this.scheduleCA.part1sectionCline27colC())
+    }
+    return 0
+  }
 
-  l15 = (): number => this.l13() - (this.l14() ?? 0)
+  l15 = (): number => this.l13() - this.l14()
 
-  l16 = (): number | undefined => undefined
+  l16 = (): number => {
+    if (this.scheduleCA.part1sectionCline27colB() < 0) {
+      return Math.abs(this.scheduleCA.part1sectionCline27colB())
+    } else if (this.scheduleCA.part1sectionCline27colC() > 0) {
+      return this.scheduleCA.part1sectionCline27colC()
+    }
+    return 0
+  }
 
-  l17 = (): number => sumFields([this.l15(), this.l16()])
+  l17 = (): number => this.l15() + this.l16()
 
-  l18 = (): number | undefined => undefined
+  l18 = (): number => {
+    if (this.info.taxPayer.filingStatus === undefined) {
+      throw Error('The filing status of the tax payer is undefined')
+    }
+    switch (this.info.taxPayer.filingStatus) {
+      case FilingStatus.S:
+        return parameters.S.standardDeduction
+      case FilingStatus.MFJ:
+        return parameters.MFJ.standardDeduction
+      case FilingStatus.MFS:
+        return parameters.MFS.standardDeduction
+      case FilingStatus.HOH:
+        return parameters.HOH.standardDeduction
+      case FilingStatus.W:
+        return parameters.W.standardDeduction
+    }
+  }
 
   l19 = (): number => {
     const tmp = this.l17() - this.l18()
@@ -165,7 +205,7 @@ export class CA540 extends Form {
     return tmp
   }
 
-  l31 = (): number | undefined => undefined
+  l31 = (): number => undefined
 
   l32 = (): number => this.l11()
 
