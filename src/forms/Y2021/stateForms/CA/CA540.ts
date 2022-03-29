@@ -10,7 +10,9 @@ import {
   Dependent
 } from 'ustaxes/core/data'
 import parameters from './Parameters'
+import { TaxBracket } from './Parameters'
 import { ScheduleCA } from './ScheduleCA'
+import AgiLimitationWorsheet from './AGILimitationWorksheet'
 
 export class CA540 extends Form {
   info: Information
@@ -30,6 +32,53 @@ export class CA540 extends Form {
     this.methods = new FormMethods(this)
 
     this.scheduleCA = new ScheduleCA(this.info, this.f1040)
+  }
+
+  calculateTaxForFilingStatus = (
+    income: number,
+    taxSchedule: Array<TaxBracket>
+  ) => {
+    for (const i of taxSchedule) {
+      if (income >= i.lower && income < i.upper) {
+        return i.baseAmount + (income - i.overAmount) * i.rate
+      }
+    }
+    throw Error(
+      'Could not identify the correct tax bracket for California Taxes'
+    )
+  }
+
+  calculateTax = (): number => {
+    if (this.info.taxPayer.filingStatus === undefined) {
+      throw Error('The filing status of the tax payer is undefined')
+    }
+    switch (this.info.taxPayer.filingStatus) {
+      case FilingStatus.S:
+        return this.calculateTaxForFilingStatus(
+          this.l19(),
+          parameters.S.taxSchedule
+        )
+      case FilingStatus.MFJ:
+        return this.calculateTaxForFilingStatus(
+          this.l19(),
+          parameters.MFJ.taxSchedule
+        )
+      case FilingStatus.MFS:
+        return this.calculateTaxForFilingStatus(
+          this.l19(),
+          parameters.MFS.taxSchedule
+        )
+      case FilingStatus.HOH:
+        return this.calculateTaxForFilingStatus(
+          this.l19(),
+          parameters.HOH.taxSchedule
+        )
+      case FilingStatus.W:
+        return this.calculateTaxForFilingStatus(
+          this.l19(),
+          parameters.W.taxSchedule
+        )
+    }
   }
 
   attachments = (): Form[] => {
@@ -137,7 +186,10 @@ export class CA540 extends Form {
   l9total = (): number => 129 * this.l9count()
 
   // TODO: figure out the exemptions
-  totalDependantExemptions = (): number => 0
+  totalDependantExemptionsCount = (): number => 0
+
+  totalDependantExemptionsAmount = (): number =>
+    this.totalDependantExemptionsCount() * 400
 
   l11 = (): number =>
     sumFields([
@@ -147,7 +199,11 @@ export class CA540 extends Form {
       this.totalDependantExemptions()
     ])
 
-  l12 = (): number => this.methods.stateWithholding()
+  l12 = (): number =>
+    this.methods
+      .stateW2s()
+      .map((w2) => w2.stateWages ?? 0)
+      .reduce((res, amt) => res + amt, 0)
 
   l13 = (): number => this.f1040.l11()
 
@@ -197,25 +253,22 @@ export class CA540 extends Form {
     }
   }
 
-  l19 = (): number => {
-    const tmp = this.l17() - this.l18()
-    if (tmp < 0) {
-      return 0
+  l19 = (): number => Math.max(0, this.l17() - this.l18())
+
+  l31 = (): number => this.calculateTax()
+
+  l32 = (): number => {
+    if (this.l11() > 212228) {
+      const agiLimit = new AgiLimitationWorsheet(
+        this,
+        this.info.taxPayer.filingStatus
+      )
+      return agiLimit.agiLimitation()
     }
-    return tmp
+    return this.l11()
   }
 
-  l31 = (): number => undefined
-
-  l32 = (): number => this.l11()
-
-  l33 = (): number => {
-    const tmp = this.l31() - this.l32()
-    if (tmp < 0) {
-      return 0
-    }
-    return tmp
-  }
+  l33 = (): number => Math.max(0, this.l31() - this.l32())
 
   l34 = (): number | undefined => undefined
 
@@ -247,15 +300,18 @@ export class CA540 extends Form {
   }
 
   l61 = (): number | undefined => undefined
-  l62 = (): number | undefined => undefined
+  l62 = (): number => (this.l19() > 1000000 ? (this.l19() - 1000000) * 0.01 : 0)
+
   l63 = (): number | undefined => undefined
   l64 = (): number | undefined => undefined
   l65 = (): number | undefined =>
     sumFields([this.l48(), this.l61(), this.l62(), this.l63(), this.l64()])
 
-  l71 = (): number | undefined => undefined
+  l71 = (): number => this.methods.stateWithholding()
   l72 = (): number | undefined => undefined
   l73 = (): number | undefined => undefined
+
+  // CASDI from box 14 of W2
   l74 = (): number | undefined => undefined
   l75 = (): number | undefined => undefined
   l76 = (): number | undefined => undefined
