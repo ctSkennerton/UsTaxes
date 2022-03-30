@@ -196,7 +196,7 @@ export class CA540 extends Form {
       this.l7total(),
       this.l8total(),
       this.l9total(),
-      this.totalDependantExemptions()
+      this.totalDependantExemptionsAmount()
     ])
 
   l12 = (): number =>
@@ -313,10 +313,16 @@ export class CA540 extends Form {
 
   // CASDI from box 14 of W2
   l74 = (): number | undefined => undefined
+
+  // Earned Income Tax Credit
   l75 = (): number | undefined => undefined
+
+  // Young Child Tax Credit
   l76 = (): number | undefined => undefined
+
+  // Net Premium Assistance Subsidy
   l77 = (): number | undefined => undefined
-  l78 = (): number | undefined =>
+  l78 = (): number =>
     sumFields([
       this.l71(),
       this.l72(),
@@ -327,7 +333,10 @@ export class CA540 extends Form {
       this.l77()
     ])
 
-  l91 = (): number | undefined => undefined
+  // Use Tax. For purchases made out of state where CA State tax not collected
+  l91 = (): number => 0
+  l91noUseTaxOwed = (): boolean => true
+  l91useTaxPaidDirectly = (): boolean => false
 
   l92checkbox = (): boolean | undefined => undefined
   l92 = (): number | undefined => undefined
@@ -337,15 +346,23 @@ export class CA540 extends Form {
   l94 = (): number | undefined =>
     this.l78() < this.l91() ? this.l91() - this.l78() : undefined
   l95 = (): number | undefined =>
-    this.l93() > this.l92() ? this.l93() - this.l92() : undefined
+    (this.l93() ?? 0) > (this.l92() ?? 0)
+      ? (this.l93() ?? 0) - (this.l92() ?? 0)
+      : undefined
   l96 = (): number | undefined =>
-    this.l93() < this.l92() ? this.l92() - this.l93() : undefined
+    (this.l93() ?? 0) < (this.l92() ?? 0)
+      ? (this.l92() ?? 0) - (this.l93() ?? 0)
+      : undefined
   l97 = (): number | undefined =>
-    this.l95() > this.l65() ? this.l95() - this.l65() : undefined
+    (this.l95() ?? 0) > (this.l65() ?? 0)
+      ? (this.l95() ?? 0) - (this.l65() ?? 0)
+      : undefined
   l98 = (): number => 0
   l99 = (): number => (this.l97() ?? 0) - this.l98()
   l100 = (): number | undefined =>
-    this.l95() < this.l65() ? this.l65() - this.l95() : undefined
+    (this.l95() ?? 0) < (this.l65() ?? 0)
+      ? (this.l65() ?? 0) - (this.l95() ?? 0)
+      : undefined
 
   l400 = (): number | undefined => undefined
   l401 = (): number | undefined => undefined
@@ -466,7 +483,7 @@ export class CA540 extends Form {
     `${this.info.taxPayer.primaryPerson?.firstName} ${this.info.taxPayer.primaryPerson?.lastName}`,
     this.info.taxPayer.primaryPerson?.ssid,
     ...this._depFieldMappings(),
-    this.totalDependantExemptions(),
+    this.totalDependantExemptionsAmount(),
     this.l11(),
     this.l12(),
     this.l13(),
