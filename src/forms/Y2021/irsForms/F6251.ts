@@ -6,6 +6,7 @@ import { Field } from 'ustaxes/core/pdfFiller'
 
 import { AMT, AMTTaxRate } from '../data/federal'
 import { sumFields } from 'ustaxes/core/irsForms/util'
+import F1040 from './F1040'
 
 const excemptionAmountForFilingStatus = (
   status: FilingStatus | undefined
@@ -65,53 +66,57 @@ const bracketForFilingStatus = (status: FilingStatus | undefined): number => {
   }
 }
 
+/* Schedule 2 Line 1 also contains a worksheet with information
+     whether you need to fill out form 6251
+   */
+const schedule2Line1Worksheet = (f1040: F1040): boolean => {
+  const filingStatus = f1040.info.taxPayer.filingStatus
+  const l3 = f1040.l11() - (f1040.l13() ?? 0)
+  console.log(`s2l1w l3 ${l3}`)
+  const l4 = sumFields([f1040.schedule1?.l1(), f1040.schedule1?.l8z()])
+  console.log(`s2l1w l4 ${l4}`)
+  const l5 = l3 - l4
+  console.log(`s2l1w l5 ${l5}`)
+  const l6 = excemptionAmountForFilingStatus(filingStatus)
+  console.log(`s2l1w l6 ${l6}`)
+  if (l5 > l6) {
+    return false
+  }
+  const l7 = l5 - l6
+  console.log(`s2l1w l7 ${l7}`)
+  const l8 = excemptionPhaseoutAmountForFilingStatus(filingStatus)
+  console.log(`s2l1w l8 ${l8}`)
+  let l11: number | undefined = undefined
+  if (l5 > l8) {
+    l11 = l7
+  } else {
+    const l9 = l5 - l8
+    const l10 = Math.min(l9 * 0.25, l6)
+    l11 = l10 + l7
+  }
+  console.log(`s2l1w l11 ${l11}`)
+  let l12: number | undefined = undefined
+  if (l11 > bracketForFilingStatus(filingStatus)) {
+    return true
+  } else {
+    l12 = l11 * AMTTaxRate
+  }
+  console.log(`s2l1w l12 ${l12}`)
+  /**
+   * Add Form 1040, 1040-SR, or 1040-NR, line 16 (TODO minus any tax from Form 4972),
+   * and Schedule 2, line 2. (TODO If you used Schedule J to figure your tax on the entry space on Form 1040,
+   * 1040-SR, or 1040-NR, line 16, refigure that tax without using Schedule J before including it in this calculation)
+   */
+  const l13 = sumFields([f1040.l16(), f1040.schedule2?.l2()])
+  if (l12 > l13) {
+    return true
+  }
+  return false
+}
+
 export default class F6251 extends F1040Attachment {
   tag: FormTag = 'f6251'
   sequenceIndex = 72
-
-  /* Schedule 2 Line 1 also contains a worksheet with information
-     whether you need to fill out form 6251
-   */
-  schedule2Line1Worksheet = (): boolean => {
-    const filingStatus = this.state.taxPayer.filingStatus
-    const l3 = this.f1040.l11() - (this.f1040.l13() ?? 0)
-    const l4 = sumFields([
-      this.f1040.schedule1?.l1(),
-      this.f1040.schedule1?.l8z()
-    ])
-    const l5 = l3 - l4
-    const l6 = excemptionAmountForFilingStatus(filingStatus)
-    if (l5 > l6) {
-      return false
-    }
-    const l7 = l5 - l6
-    const l8 = excemptionPhaseoutAmountForFilingStatus(filingStatus)
-
-    let l11: number | undefined = undefined
-    if (l5 > l8) {
-      l11 = l7
-    } else {
-      const l9 = l5 - l8
-      const l10 = Math.min(l9 * 0.25, l6)
-      l11 = l10 + l7
-    }
-    let l12: number | undefined = undefined
-    if (l11 > bracketForFilingStatus(filingStatus)) {
-      return true
-    } else {
-      l12 = l11 * AMTTaxRate
-    }
-    /**
-     * Add Form 1040, 1040-SR, or 1040-NR, line 16 (TODO minus any tax from Form 4972),
-     * and Schedule 2, line 2. (TODO If you used Schedule J to figure your tax on the entry space on Form 1040,
-     * 1040-SR, or 1040-NR, line 16, refigure that tax without using Schedule J before including it in this calculation)
-     */
-    const l13 = sumFields([this.f1040.l16(), this.f1040.schedule2?.l2()])
-    if (l12 > l13) {
-      return true
-    }
-    return false
-  }
 
   isNeeded = (): boolean => {
     // See https://www.irs.gov/instructions/i6251
@@ -149,7 +154,7 @@ export default class F6251 extends F1040Attachment {
     if (l2cTo3Total < 0 && (this.l7(-l2cTo3Total) ?? 0) > this.l10())
       return true
 
-    if (this.schedule2Line1Worksheet()) {
+    if (schedule2Line1Worksheet(this.f1040)) {
       return true
     }
     return false
