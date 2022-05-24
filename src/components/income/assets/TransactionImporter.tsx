@@ -10,15 +10,22 @@ import {
   Portfolio,
   Position,
   processTransactions,
+  Side,
   Transaction,
   TransactionError
 } from 'ustaxes/data/transactions'
-import { Either, isLeft, left, right, run } from 'ustaxes/core/util'
+import {
+  Either,
+  EitherMethods,
+  isLeft,
+  left,
+  pure,
+  pureLeft,
+  right,
+  run
+} from 'ustaxes/core/util'
 import { Asset } from 'ustaxes/core/data'
-import ConfigurableDataTable, {
-  baseCellStyle,
-  forceHeadCells
-} from './ConfigurableDataTable'
+import ConfigurableDataTable, { ColumnDef } from './ConfigurableDataTable'
 
 interface PortfolioTableProps {
   portfolio: Portfolio
@@ -31,46 +38,42 @@ export const PortfolioTable = ({
 
   const columns: TableColumn<Position>[] = [
     {
-      name: 'Security',
-      selector: (p) => p.security.name,
-      style: baseCellStyle(prefersDarkMode)
+      name: 'Asset Name',
+      selector: (p) => p.security.name
     },
     {
       name: 'Open Date',
-      selector: (p) => p.openDate,
-      style: baseCellStyle(prefersDarkMode)
+      selector: (p) => p.openDate
     },
     {
       name: 'Quantity',
-      selector: (p) => p.quantity,
-      style: baseCellStyle(prefersDarkMode)
+      selector: (p) => p.quantity
     },
     {
       name: 'Price per unit',
-      selector: (p) => p.price,
-      style: baseCellStyle(prefersDarkMode)
+      selector: (p) => p.price
     },
     {
       name: 'Basis',
-      selector: (p) => p.price * p.quantity,
-      style: baseCellStyle(prefersDarkMode)
+      selector: (p) => p.price * p.quantity
     },
     {
       name: 'Close Date',
-      selector: (p) => p.closeDate ?? '',
-      style: baseCellStyle(prefersDarkMode)
+      selector: (p) => p.closeDate ?? ''
+    },
+    {
+      name: 'Close Fee',
+      selector: (p) => (p.closeDate === undefined ? '' : p.closeFee ?? 0)
     },
     {
       name: 'Proceeds',
       selector: (p) =>
-        p.closePrice !== undefined ? p.quantity * p.closePrice : '',
-      style: baseCellStyle(prefersDarkMode)
+        p.closePrice !== undefined ? p.quantity * p.closePrice : ''
     },
     {
       name: 'Gain or Loss',
       selector: (p) =>
-        p.closePrice !== undefined ? (p.closePrice - p.price) * p.quantity : '',
-      style: baseCellStyle(prefersDarkMode)
+        p.closePrice !== undefined ? (p.closePrice - p.price) * p.quantity : ''
     }
   ]
 
@@ -78,18 +81,21 @@ export const PortfolioTable = ({
     <DataTable
       columns={columns}
       data={portfolio.positions}
-      customStyles={forceHeadCells(prefersDarkMode)}
+      theme={prefersDarkMode ? 'dark' : 'normal'}
     />
   )
 }
 
+const field = (name: string, required = true): ColumnDef => ({ name, required })
+
 // The fields that must be set by the user after importing a CSV file
-const fields = [
-  'Security Name',
-  'Transaction date',
-  'Buy or Sell',
-  'Price per unit',
-  'Quantity'
+const fields: ColumnDef[] = [
+  field('Asset Name'),
+  field('Transaction date'),
+  field('Buy or Sell'),
+  field('Price per unit'),
+  field('Quantity'),
+  field('Fee / commissions', false)
 ]
 
 export const TransactionImporter = (): ReactElement => {
@@ -113,7 +119,10 @@ export const TransactionImporter = (): ReactElement => {
   const dispatch = useDispatch()
 
   const ready = () =>
-    fields.every((f) => fieldAssignments.filter((a) => a === f).length === 1)
+    fields.every(
+      (f) =>
+        !f.required || fieldAssignments.filter((a) => a === f.name).length === 1
+    )
 
   const assignField = (colIndex: number, field: string | undefined) => {
     const newFieldAssignments = [...fieldAssignments]
@@ -124,120 +133,175 @@ export const TransactionImporter = (): ReactElement => {
     setFieldAssignments(newFieldAssignments)
   }
 
-  const onHandle = async (contents: string): Promise<void> => {
+  const onHandle = (contents: string): void => {
     setRawContents(contents)
-    const res = await preflightCsv(contents).catch((parseError) => {
-      console.error("Couldn't parse CSV", parseError)
-      return []
-    })
-    setPreflightTransactions(res)
+    run(preflightCsv(contents)).fold(
+      (e) => console.error("Couldn't parse CSV", e),
+      setPreflightTransactions
+    )
   }
 
   const parseRow = (row: string[]): Either<string[], Transaction> => {
     const assignments = fieldAssignments as string[]
 
-    const errors: string[] = []
-
-    const date: string | undefined = (() => {
+    const date: Either<string, Date> = (() => {
       const dateStr = row[assignments.indexOf('Transaction date')]
       try {
-        return new Date(dateStr.slice(0, 10)).toISOString().slice(0, 10)
+        return right(new Date(dateStr.slice(0, 10)))
       } catch (e) {
-        errors.push(
+        return left(
           `Parsing transaction date value (${
             row[assignments.indexOf('Transaction date')]
           }) as date failed`
         )
-        return undefined
       }
     })()
 
-    const quantity: number | undefined = (() => {
+    const quantity: Either<string, number> = (() => {
       const quantityStr = row[assignments.indexOf('Quantity')]
       const v = parseFloat(quantityStr)
       if (isNaN(v)) {
-        return errors.push(
-          `Could not parse quantity value (${quantityStr}) as number`
-        )
+        return left(`Could not parse quantity value (${quantityStr}) as number`)
       } else {
-        return v
+        return right(v)
       }
     })()
 
-    const price: number | undefined = (() => {
+    const price: Either<string, number> = (() => {
       const priceStr = row[assignments.indexOf('Price per unit')]
       const v = parseFloat(priceStr)
       if (isNaN(v)) {
-        errors.push(`Could not parse price value (${priceStr}) as number`)
+        return left(`Could not parse price value (${priceStr}) as number`)
       } else {
-        return v
+        return right(v)
       }
     })()
 
-    if (quantity === undefined || price === undefined || date === undefined) {
-      return left(errors)
-    }
-
-    return right({
-      security: {
-        name: row[assignments.indexOf('Security Name')]
-      },
-      date,
-      quantity,
-      price,
-      side:
-        row[assignments.indexOf('Buy or Sell')].toLowerCase() === 'buy'
-          ? 'BUY'
-          : 'SELL'
-    })
-  }
-
-  const addToPortfolio = async () => {
-    const csv = await preflightCsvAll(rawContents)
-    let errorResult: TransactionError | undefined
-
-    const transactions: Transaction[] = csv.flatMap((row, idx) => {
-      if (idx < dropFirstNRows) {
-        return []
+    const side: Either<string, Side> = (() => {
+      const cell = row[assignments.indexOf('Buy or Sell')].toLowerCase()
+      if (cell === 'buy') {
+        return right('BUY')
       }
-
-      const parsedRow = parseRow(row)
-      if (errorResult !== undefined) {
-        return []
+      if (cell === 'sell') {
+        return right('SELL')
       }
-      if (isLeft(parsedRow)) {
-        errorResult = {
-          errorIndex: idx,
-          messages: parsedRow.left,
-          errorTransaction: undefined,
-          previousPortfolio: undefined
-        }
-        return []
+      return left(`Could not parse value ${cell} as buy or sell`)
+    })()
+
+    const feeIdx = assignments.indexOf('Fee / commissions')
+
+    const fee: Either<string, number | undefined> = (() => {
+      if (feeIdx < 0) {
+        return right(undefined)
+      }
+      const feeStr = row[feeIdx]
+      const v = parseFloat(feeStr)
+      if (isNaN(v)) {
+        return left(`Could not parse fee value (${feeStr}) as number`)
       } else {
-        return [parsedRow.right]
+        return right(v)
       }
-    })
+    })()
 
-    if (errorResult !== undefined) {
-      // First deal with parsing errors, if any
-      setPortfolioError(errorResult)
+    // Either is a fail-fast construct, so
+    // we dont (yet) have a way to nicely combine
+    // errors.
+    const errors = []
+
+    if (isLeft(date)) {
+      errors.push(date.left)
+    }
+    if (isLeft(quantity)) {
+      errors.push(quantity.left)
+    }
+    if (isLeft(price)) {
+      errors.push(price.left)
+    }
+    if (isLeft(side)) {
+      errors.push(side.left)
+    }
+
+    // bad if condition necessary for typechecking below.
+    if (
+      isLeft(date) ||
+      isLeft(quantity) ||
+      isLeft(price) ||
+      isLeft(side) ||
+      isLeft(fee)
+    ) {
+      return left(errors)
     } else {
-      // Then deal with portfolio generating errors, if any.
-      run(processTransactions({ positions: [] }, transactions)).fold(
-        (e) =>
-          setPortfolioError({
-            ...e,
-            messages: [
-              'This usually means you have sell transactions in excess of securities you hold at the time of sale. Either these are short sales, which are not yet supported here, or buy transactions that predate these sales are missing. If this is the case, add the required positions as BUY transactions at the beginning of this CSV file and try again.'
-            ]
-          }),
-        (portfolio) => {
-          setPortfolioError(undefined)
-          setPortfolio(portfolio)
-        }
-      )
+      return right({
+        security: {
+          name: row[assignments.indexOf('Asset Name')]
+        },
+        date: date.right.toISOString().slice(0, 10),
+        quantity: quantity.right,
+        price: price.right,
+        side: side.right,
+        fee: fee.right
+      })
     }
   }
+
+  const addToPortfolio = () =>
+    run(preflightCsvAll(rawContents)).fold(
+      (csvReadErrors) => {
+        setPortfolioError({
+          messages: ['Could not parse CSV', csvReadErrors[0].message],
+          errorIndex: csvReadErrors[0].row
+        })
+      },
+      (rows) => {
+        const accumulatedErrors = rows.reduce((acc, row, idx) => {
+          // Skip configured header rows
+          if (idx < dropFirstNRows) {
+            return acc
+          }
+          return run(parseRow(row)).fold(
+            (e) =>
+              acc.fold(
+                (errors) =>
+                  pureLeft(errors.concat({ errorIndex: idx, messages: e })),
+                () =>
+                  pureLeft([
+                    {
+                      errorIndex: idx,
+                      messages: e
+                    }
+                  ])
+              ),
+            (res) => acc.map((ts) => ts.concat(res))
+          )
+        }, pure<TransactionError[], Transaction[]>([]))
+
+        const processedTransactions: EitherMethods<
+          TransactionError[],
+          Portfolio
+        > = accumulatedErrors.chain((transactions) =>
+          run(processTransactions(portfolio, transactions))
+            .mapLeft((e) => [
+              {
+                ...e,
+                messages: [
+                  'This usually means you have sell transactions in excess of securities you hold at the time of sale. Either these are short sales, which are not yet supported here, or buy transactions that predate these sales are missing. If this is the case, add the required positions as BUY transactions at the beginning of this CSV file and try again.'
+                ]
+              }
+            ])
+            .value()
+        )
+
+        processedTransactions.fold(
+          (errors) => {
+            setPortfolioError(errors[0])
+          },
+          (portfolio) => {
+            setPortfolioError(undefined)
+            setPortfolio(portfolio)
+          }
+        )
+      }
+    )
 
   const readyButton = (() => {
     if (ready() && portfolio.positions.length === 0) {
@@ -270,6 +334,8 @@ export const TransactionImporter = (): ReactElement => {
       openPrice: position.price,
       positionType: 'Security',
       quantity: position.quantity,
+      openFee: position.openFee,
+      closeFee: position.closeFee,
       closeDate:
         position.closeDate !== undefined
           ? new Date(position.closeDate)
@@ -319,7 +385,7 @@ export const TransactionImporter = (): ReactElement => {
         <LoadRaw
           variant="contained"
           color="primary"
-          handleData={async (contents: string) => await onHandle(contents)}
+          handleData={(contents: string) => onHandle(contents)}
         >
           Load CSV File
         </LoadRaw>

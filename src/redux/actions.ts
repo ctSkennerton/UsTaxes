@@ -2,24 +2,28 @@ import {
   Person,
   IncomeW2,
   Refund,
-  Dependent,
+  DependentDateString,
   FilingStatus,
-  PrimaryPerson,
+  PrimaryPersonDateString,
   ContactInfo,
   Supported1099,
   F1098e,
-  Spouse,
+  SpouseDateString,
   Property,
   StateResidency,
   Information,
   EstimatedTaxPayments,
   Responses,
-  HealthSavingsAccount,
   Ira,
   Asset,
   ItemizedDeductions,
   F3921,
-  ScheduleK1Form1065
+  ScheduleK1Form1065,
+  TaxYear,
+  HealthSavingsAccountDateString,
+  InformationDateString,
+  Credit,
+  EditCreditAction
 } from 'ustaxes/core/data'
 
 import {
@@ -30,23 +34,15 @@ import {
   EditEstimatedTaxesAction,
   Edit1098eAction,
   EditHSAAction,
-  EditIraAction
-} from './data'
-import ajv, * as validators from 'ustaxes/core/data/validate'
-import { TaxYear } from 'ustaxes/data'
-import { ValidateFunction } from 'ajv'
-import {
+  EditIraAction,
   EditAssetAction,
   EditF3921Action,
   EditScheduleK1Form1065Action
-} from '.'
-
-const indexSchema = {
-  type: 'number',
-  minimum: 0
-}
-
-const indexValidator: ValidateFunction<number> = ajv.compile(indexSchema)
+} from 'ustaxes/core/data'
+import * as validators from 'ustaxes/core/data/validate'
+import { index as indexValidator } from 'ustaxes/core/data/validate'
+import { ValidateFunction } from 'ajv'
+import { infoToStringInfo } from './data'
 
 export enum ActionName {
   SAVE_REFUND_INFO = 'SAVE_REFUND_INFO',
@@ -89,12 +85,16 @@ export enum ActionName {
   ADD_ASSETS = 'ASSETS/ADD_MANY',
   EDIT_ASSET = 'ASSETS/EDIT',
   REMOVE_ASSET = 'ASSETS/REMOVE',
+  REMOVE_ASSETS = 'ASSETS/REMOVE_MANY',
   ADD_F3921 = 'F3921/ADD',
   EDIT_F3921 = 'F3921/EDIT',
   REMOVE_F3921 = 'F3921/REMOVE',
   ADD_SCHEDULE_K1_F1065 = 'SCHEDULE_K1_F1065/ADD',
   EDIT_SCHEDULE_K1_F1065 = 'SCHEDULE_K1_F1065/EDIT',
-  REMOVE_SCHEDULE_K1_F1065 = 'SCHEDULE_K1_F1065/REMOVE'
+  REMOVE_SCHEDULE_K1_F1065 = 'SCHEDULE_K1_F1065/REMOVE',
+  ADD_CREDIT = 'CREDIT/ADD',
+  EDIT_CREDIT = 'CREDIT/EDIT',
+  REMOVE_CREDIT = 'CREDIT/REMOVE'
 }
 
 interface Save<T, R> {
@@ -106,7 +106,7 @@ interface Save<T, R> {
 type SaveRefundInfo = Save<typeof ActionName.SAVE_REFUND_INFO, Refund>
 type SavePrimaryPersonInfo = Save<
   typeof ActionName.SAVE_PRIMARY_PERSON_INFO,
-  PrimaryPerson
+  PrimaryPersonDateString
 >
 type SaveFilingStatusInfo = Save<
   typeof ActionName.SAVE_FILING_STATUS_INFO,
@@ -117,10 +117,10 @@ type SaveStateResidencyInfo = Save<
   typeof ActionName.SAVE_STATE_RESIDENCY,
   StateResidency
 >
-type AddDependent = Save<typeof ActionName.ADD_DEPENDENT, Dependent>
+type AddDependent = Save<typeof ActionName.ADD_DEPENDENT, DependentDateString>
 type EditDependent = Save<typeof ActionName.EDIT_DEPENDENT, EditDependentAction>
 type RemoveDependent = Save<typeof ActionName.REMOVE_DEPENDENT, number>
-type AddSpouse = Save<typeof ActionName.ADD_SPOUSE, Spouse>
+type AddSpouse = Save<typeof ActionName.ADD_SPOUSE, SpouseDateString>
 type RemoveSpouse = Save<typeof ActionName.REMOVE_SPOUSE, Record<string, never>>
 type AddW2 = Save<typeof ActionName.ADD_W2, IncomeW2>
 type EditW2 = Save<typeof ActionName.EDIT_W2, EditW2Action>
@@ -134,7 +134,7 @@ type EditEstimatedTaxes = Save<
   EditEstimatedTaxesAction
 >
 type RemoveEstimatedTaxes = Save<typeof ActionName.REMOVE_ESTIMATED_TAX, number>
-type AddHSA = Save<typeof ActionName.ADD_HSA, HealthSavingsAccount>
+type AddHSA = Save<typeof ActionName.ADD_HSA, HealthSavingsAccountDateString>
 type EditHSA = Save<typeof ActionName.EDIT_HSA, EditHSAAction>
 type RemoveHSA = Save<typeof ActionName.REMOVE_HSA, number>
 type Add1099 = Save<typeof ActionName.ADD_1099, Supported1099>
@@ -151,7 +151,7 @@ type SetItemizedDeductions = Save<
   typeof ActionName.SET_ITEMIZED_DEDUCTIONS,
   ItemizedDeductions
 >
-type SetInfo = Save<typeof ActionName.SET_INFO, Information>
+type SetInfo = Save<typeof ActionName.SET_INFO, InformationDateString>
 type SetActiveYear = Save<typeof ActionName.SET_ACTIVE_YEAR, TaxYear>
 type AddIRA = Save<typeof ActionName.ADD_IRA, Ira>
 type EditIRA = Save<typeof ActionName.EDIT_IRA, EditIraAction>
@@ -160,6 +160,7 @@ type AddAsset = Save<typeof ActionName.ADD_ASSET, Asset<Date>>
 type AddAssets = Save<typeof ActionName.ADD_ASSETS, Asset<Date>[]>
 type EditAsset = Save<typeof ActionName.EDIT_ASSET, EditAssetAction>
 type RemoveAsset = Save<typeof ActionName.REMOVE_ASSET, number>
+type RemoveAssets = Save<typeof ActionName.REMOVE_ASSETS, number[]>
 type AddF3921 = Save<typeof ActionName.ADD_F3921, F3921>
 type EditF3921 = Save<typeof ActionName.EDIT_F3921, EditF3921Action>
 type RemoveF3921 = Save<typeof ActionName.REMOVE_F3921, number>
@@ -175,6 +176,9 @@ type RemoveScheduleK1Form1065 = Save<
   typeof ActionName.REMOVE_SCHEDULE_K1_F1065,
   number
 >
+type AddCredit = Save<typeof ActionName.ADD_CREDIT, Credit>
+type EditCredit = Save<typeof ActionName.EDIT_CREDIT, EditCreditAction>
+type RemoveCredit = Save<typeof ActionName.REMOVE_CREDIT, number>
 
 export type Actions =
   | SaveRefundInfo
@@ -216,12 +220,16 @@ export type Actions =
   | AddAssets
   | EditAsset
   | RemoveAsset
+  | RemoveAssets
   | AddF3921
   | EditF3921
   | RemoveF3921
   | AddScheduleK1Form1065
   | EditScheduleK1Form1065
   | RemoveScheduleK1Form1065
+  | AddCredit
+  | EditCredit
+  | RemoveCredit
 
 export type SignalAction = (year: TaxYear) => Actions
 export type ActionCreator<A> = (formData: A) => SignalAction
@@ -259,18 +267,18 @@ const makeActionCreator =
  * apply formatting changes to provided data, for example.
  */
 const makePreprocessActionCreator =
-  <A, T extends ActionName>(
+  <A, AA, T extends ActionName>(
     t: T,
-    validate: ValidateFunction<A> | undefined,
-    clean: (d: A) => Partial<A>
+    validate: ValidateFunction<AA> | undefined,
+    clean: (d: A) => AA
   ) =>
   (formData: A) =>
-  (year: TaxYear): Save<T, A> => ({
+  (year: TaxYear): Save<T, AA> => ({
     type: t,
     year,
     formData:
       validate !== undefined
-        ? validators.checkType({ ...formData, ...clean(formData) }, validate)
+        ? validators.checkType(clean(formData), validate)
         : { ...formData, ...clean(formData) }
   })
 
@@ -279,12 +287,12 @@ export const saveRefundInfo: ActionCreator<Refund> = makeActionCreator(
   validators.refund
 )
 
-const cleanPerson = <P extends Person>(p: P): P => ({
+const cleanPerson = <P extends Person<string>>(p: P): P => ({
   ...p,
-  ssid: p?.ssid.replace(/-/g, '')
+  ssid: p.ssid.replace(/-/g, '')
 })
 
-export const savePrimaryPersonInfo: ActionCreator<PrimaryPerson> =
+export const savePrimaryPersonInfo: ActionCreator<PrimaryPersonDateString> =
   makePreprocessActionCreator(
     ActionName.SAVE_PRIMARY_PERSON_INFO,
     validators.primaryPerson,
@@ -307,11 +315,11 @@ export const saveContactInfo: ActionCreator<ContactInfo> =
     })
   )
 
-export const addDependent: ActionCreator<Dependent> =
+export const addDependent: ActionCreator<DependentDateString> =
   makePreprocessActionCreator(
     ActionName.ADD_DEPENDENT,
     validators.dependent,
-    (t: Dependent) => cleanPerson(t)
+    (t: DependentDateString) => cleanPerson(t)
   )
 
 export const editDependent: ActionCreator<EditDependentAction> =
@@ -329,11 +337,12 @@ export const removeDependent: ActionCreator<number> = makeActionCreator(
   indexValidator
 )
 
-export const addSpouse: ActionCreator<Spouse> = makePreprocessActionCreator(
-  ActionName.ADD_SPOUSE,
-  validators.spouse,
-  cleanPerson
-)
+export const addSpouse: ActionCreator<SpouseDateString> =
+  makePreprocessActionCreator(
+    ActionName.ADD_SPOUSE,
+    validators.spouse,
+    cleanPerson
+  )
 
 export const removeSpouse: SignalAction = signalAction(ActionName.REMOVE_SPOUSE)
 
@@ -365,16 +374,12 @@ export const removeEstimatedPayment: ActionCreator<number> = makeActionCreator(
   indexValidator
 )
 
-export const addHSA: ActionCreator<HealthSavingsAccount> = makeActionCreator(
-  ActionName.ADD_HSA,
-  validators.healthSavingsAccounts
-)
+export const addHSA: ActionCreator<HealthSavingsAccountDateString> =
+  makeActionCreator(ActionName.ADD_HSA, validators.healthSavingsAccount)
 
 export const editHSA: ActionCreator<EditHSAAction> = makeActionCreator(
   ActionName.EDIT_HSA,
-  ajv.getSchema(
-    '#/definitions/EditHSAAction'
-  ) as ValidateFunction<EditHSAAction>
+  validators.editHSAAction
 )
 
 export const removeHSA: ActionCreator<number> = makeActionCreator(
@@ -435,26 +440,25 @@ export const setItemizedDeductions: ActionCreator<ItemizedDeductions> =
   )
 
 // debugging purposes only, leaving unchecked.
-export const setInfo: ActionCreator<Information> = makeActionCreator(
-  ActionName.SET_INFO,
-  validators.information
-)
+export const setInfo = makePreprocessActionCreator<
+  Information,
+  InformationDateString,
+  ActionName.SET_INFO
+>(ActionName.SET_INFO, validators.information, (info) => infoToStringInfo(info))
 
 export const setActiveYear: ActionCreator<TaxYear> = makeActionCreator(
   ActionName.SET_ACTIVE_YEAR,
-  ajv.getSchema('#/definitions/TaxYear') as ValidateFunction<TaxYear>
+  validators.taxYear
 )
 
 export const addIRA: ActionCreator<Ira> = makeActionCreator(
   ActionName.ADD_IRA,
-  validators.individualRetirementArrangements
+  validators.ira
 )
 
 export const editIRA: ActionCreator<EditIraAction> = makeActionCreator(
   ActionName.EDIT_IRA,
-  ajv.getSchema(
-    '#/definitions/EditIraAction'
-  ) as ValidateFunction<EditIraAction>
+  validators.editIraAction
 )
 
 export const removeIRA: ActionCreator<number> = makeActionCreator(
@@ -479,6 +483,10 @@ export const removeAsset: ActionCreator<number> = makeActionCreator(
   indexValidator
 )
 
+export const removeAssets: ActionCreator<number[]> = makeActionCreator(
+  ActionName.REMOVE_ASSETS
+)
+
 export const addF3921: ActionCreator<F3921> = makeActionCreator(
   ActionName.ADD_F3921
 )
@@ -500,3 +508,18 @@ export const editScheduleK1Form1065: ActionCreator<EditScheduleK1Form1065Action>
 
 export const removeScheduleK1Form1065: ActionCreator<number> =
   makeActionCreator(ActionName.REMOVE_SCHEDULE_K1_F1065, indexValidator)
+
+export const addCredit: ActionCreator<Credit> = makeActionCreator(
+  ActionName.ADD_CREDIT,
+  validators.credit
+)
+
+export const editCredit: ActionCreator<EditCreditAction> = makeActionCreator(
+  ActionName.EDIT_CREDIT,
+  validators.editCreditAction
+)
+
+export const removeCredit: ActionCreator<number> = makeActionCreator(
+  ActionName.REMOVE_CREDIT,
+  indexValidator
+)

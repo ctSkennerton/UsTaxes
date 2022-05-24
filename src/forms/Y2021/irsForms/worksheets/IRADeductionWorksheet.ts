@@ -16,7 +16,7 @@ const IRADeduction: IRADeductionDef = {
   }
 }
 
-export default class StudentLoanInterestWorksheet {
+export default class IRADeductionWorksheet {
   f1040: F1040
 
   constructor(f1040: F1040) {
@@ -152,5 +152,5 @@ export default class StudentLoanInterestWorksheet {
 
   // l12b = (): number => Math.min(this.l7b(), this.l10(), this.l11b())
 
-  // deduction = (): number => this.l12a() + this.l12b()
+  deduction = (): number => 0 //this.l12a() + this.l12b()
 }

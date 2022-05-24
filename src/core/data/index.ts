@@ -1,5 +1,13 @@
 import { enumKeys } from '../util'
 
+export enum TaxYears {
+  Y2019 = 2019,
+  Y2020 = 2020,
+  Y2021 = 2021
+}
+
+export type TaxYear = keyof typeof TaxYears
+
 export enum PersonRole {
   PRIMARY = 'PRIMARY',
   SPOUSE = 'SPOUSE',
@@ -7,23 +15,38 @@ export enum PersonRole {
   EMPLOYER = 'EMPLOYER'
 }
 
-export interface Person {
+/**
+ * Types such as the following are generic with respect to the Date
+ * type. AJV tests the typed serialization of these interfaces
+ * in JSON, and Date is not a valid type in JSON. So when our data
+ * is serialized in and out of local storage, or to a JSON file,
+ * these data must be parsed / serialized from / to strings.
+ *
+ * Our AJV schema generator ignores generic types.
+ */
+export interface Person<D = Date> {
   firstName: string
   lastName: string
   ssid: string
   role: PersonRole
+  isBlind: boolean
+  dateOfBirth: D
 }
 
+// Concrete type for our AJV schema generator.
+export type PersonDateString = Person<string>
+
 export interface QualifyingInformation {
-  birthYear: number
   numberOfMonths: number
   isStudent: boolean
 }
 
-export interface Dependent extends Person {
+export interface Dependent<D = Date> extends Person<D> {
   relationship: string
   qualifyingInfo?: QualifyingInformation
 }
+
+export type DependentDateString = Dependent<string>
 
 export interface Address {
   address: string
@@ -36,14 +59,17 @@ export interface Address {
   postalCode?: string
 }
 
-export interface PrimaryPerson extends Person {
+export interface PrimaryPerson<D = Date> extends Person<D> {
   address: Address
   isTaxpayerDependent: boolean
 }
+export type PrimaryPersonDateString = PrimaryPerson<string>
 
-export interface Spouse extends Person {
+export interface Spouse<D = Date> extends Person<D> {
   isTaxpayerDependent: boolean
 }
+
+export type SpouseDateString = Spouse<string>
 
 export interface Employer {
   EIN?: string
@@ -117,21 +143,20 @@ export enum PlanType1099 {
    * simplified employee pension (SEP) IRA,
    * and a savings incentive match plan for employees (SIMPLE) IRA
    */
-  // IRA = 'IRA',
-  // RothIRA = 'RothIRA',
-  // SepIRA = 'SepIRA',
-  // SimpleIRA = 'SimpleIRA',
-  /* Pension and annuity payments include distributions from 401(k), 403(b), and governmental 457(b) plans.
-   */
+  IRA = 'IRA',
+  RothIRA = 'RothIRA',
+  SepIRA = 'SepIRA',
+  SimpleIRA = 'SimpleIRA',
+  // Pension and annuity payments include distributions from 401(k), 403(b), and governmental 457(b) plans.
   Pension = 'Pension'
 }
 
-export const PlanType1099Texts = {
-  // [PlanType1099.IRA]:'traditional IRA',
-  // [PlanType1099.RothIRA]: 'Roth IRA',
-  // [PlanType1099.SepIRA]: 'simplified employee pension (SEP) IRA',
-  // [PlanType1099.SimpleIRA]: 'savings incentive match plan for employees (SIMPLE) IRA',
-  [PlanType1099.Pension]: '401(k), 403(b), or 457(b) plan'
+export const PlanType1099Texts: { [k in keyof typeof PlanType1099]: string } = {
+  IRA: 'traditional IRA',
+  RothIRA: 'Roth IRA',
+  SepIRA: 'simplified employee pension (SEP) IRA',
+  SimpleIRA: 'savings incentive match plan for employees (SIMPLE) IRA',
+  Pension: '401(k), 403(b), or 457(b) plan'
 }
 
 export interface F1099RData {
@@ -220,16 +245,18 @@ export const W2Box12CodeDescriptions: { [key in W2Box12Code]: string } = {
 
 export type W2Box12Info<A = number> = { [key in W2Box12Code]?: A }
 
-export interface HealthSavingsAccount<DateType = string> {
+export interface HealthSavingsAccount<D = Date> {
   label: string
   coverageType: 'self-only' | 'family'
   contributions: number
   personRole: PersonRole.PRIMARY | PersonRole.SPOUSE
-  startDate: DateType
-  endDate: DateType
+  startDate: D
+  endDate: D
   totalDistributions: number
   qualifiedDistributions: number
 }
+
+export type HealthSavingsAccountDateString = HealthSavingsAccount<string>
 
 export enum IraPlanType {
   IRA = 'IRA',
@@ -296,7 +323,9 @@ export const FilingStatusTexts = {
   [FilingStatus.W]: 'Widow(er)'
 }
 
-export const filingStatuses = (p: TaxPayer | undefined): FilingStatus[] => {
+export const filingStatuses = <D>(
+  p: TaxPayer<D> | undefined
+): FilingStatus[] => {
   let withDependents: FilingStatus[] = []
   let spouseStatuses: FilingStatus[] = []
 
@@ -318,12 +347,14 @@ export interface ContactInfo {
   contactEmail?: string
 }
 
-export interface TaxPayer extends ContactInfo {
+export interface TaxPayer<D = Date> extends ContactInfo {
   filingStatus?: FilingStatus
-  primaryPerson?: PrimaryPerson
-  spouse?: Spouse
-  dependents: Dependent[]
+  primaryPerson?: PrimaryPerson<D>
+  spouse?: Spouse<D>
+  dependents: Dependent<D>[]
 }
+
+export type TaxPayerDateString = TaxPayer<string>
 
 export type Income1099Int = Income1099<Income1099Type.INT, F1099IntData>
 export type Income1099B = Income1099<Income1099Type.B, F1099BData>
@@ -404,6 +435,7 @@ export interface ScheduleK1Form1065 {
   isForeign: boolean
   isPassive: boolean
   ordinaryBusinessIncome: number // Schedule E (Form 1040), line 28, column (i) or (k).
+  interestIncome: number // Form 1040, line 2b
   guaranteedPaymentsForServices: number // Schedule E (Form 1040), line 28, column (k)
   guaranteedPaymentsForCapital: number // Schedule E (Form 1040), line 28, column (k)
   selfEmploymentEarningsA: number // Schedule SE (Form 1040)
@@ -515,7 +547,18 @@ export type ValueTag = 'string' | 'boolean'
 
 export type Responses = Partial<QuestionTag> // Defines usable tag names for each question later defined,
 
-export interface Information {
+export enum CreditType {
+  AdvanceChildTaxCredit = 'CreditType/AdvanceChildTaxCredit',
+  Other = 'CreditType/Other'
+}
+
+export interface Credit {
+  recipient: PersonRole
+  amount: number
+  type: CreditType
+}
+
+export interface Information<D = Date> {
   f1099s: Supported1099[]
   w2s: IncomeW2[]
   realEstate: Property[]
@@ -525,12 +568,15 @@ export interface Information {
   scheduleK1Form1065s: ScheduleK1Form1065[]
   itemizedDeductions: ItemizedDeductions | undefined
   refund?: Refund
-  taxPayer: TaxPayer
+  taxPayer: TaxPayer<D>
   questions: Responses
+  credits: Credit[]
   stateResidencies: StateResidency[]
-  healthSavingsAccounts: HealthSavingsAccount[]
+  healthSavingsAccounts: HealthSavingsAccount<D>[]
   individualRetirementArrangements: Ira[]
 }
+
+export type InformationDateString = Information<string>
 
 /**
  * An asset can be anything that is transactable, such as a stock,
@@ -550,14 +596,48 @@ export interface Information {
  * gain. An asset is closed when it gets a closeDate.
  */
 export type AssetType = 'Security' | 'Real Estate'
-export interface Asset<DateType = Date> {
+export interface Asset<D = Date> {
   name: string
   positionType: AssetType
-  openDate: DateType
-  closeDate?: DateType
-  giftedDate?: DateType
+  openDate: D
+  closeDate?: D
+  giftedDate?: D
   openPrice: number
+  openFee: number
   closePrice?: number
+  closeFee?: number
   quantity: number
   state?: State
 }
+
+export type SoldAsset<D> = Asset<D> & {
+  closePrice: number
+  closeDate: D
+}
+
+export const isSold = <D>(p: Asset<D>): p is SoldAsset<D> => {
+  return p.closeDate !== undefined && p.closePrice !== undefined
+}
+
+export type AssetString = Asset<string>
+
+// Validated action types:
+
+export interface ArrayItemEditAction<A> {
+  index: number
+  value: A
+}
+
+export type EditDependentAction = ArrayItemEditAction<DependentDateString>
+export type EditW2Action = ArrayItemEditAction<IncomeW2>
+export type EditEstimatedTaxesAction = ArrayItemEditAction<EstimatedTaxPayments>
+export type Edit1099Action = ArrayItemEditAction<Supported1099>
+export type EditPropertyAction = ArrayItemEditAction<Property>
+export type Edit1098eAction = ArrayItemEditAction<F1098e>
+export type EditHSAAction = ArrayItemEditAction<HealthSavingsAccountDateString>
+export type EditIraAction = ArrayItemEditAction<Ira>
+export type EditAssetAction = ArrayItemEditAction<Asset<Date>>
+export type EditF3921Action = ArrayItemEditAction<F3921>
+export type EditScheduleK1Form1065Action =
+  ArrayItemEditAction<ScheduleK1Form1065>
+export type EditCreditAction = ArrayItemEditAction<Credit>

@@ -1,16 +1,15 @@
 import * as fc from 'fast-check'
 import { Arbitrary } from 'fast-check'
 import locationPostalCodes from '../data/locationPostalCodes'
-import {
-  QuestionTagName,
-  questionTagNames,
-  // IraPlanName,
-  // iraPlanNames,
-  Responses
-} from '../data'
+import { QuestionTagName, questionTagNames, Responses } from '../data'
 import * as types from '../data'
 import * as util from '../util'
 import _ from 'lodash'
+import {
+  ValidatedInformation,
+  ValidatedTaxpayer
+} from 'ustaxes/forms/F1040Base'
+import { blankYearTaxesState, YearsTaxesState } from 'ustaxes/redux'
 
 const lower: Arbitrary<string> = fc
   .integer({ min: 0x61, max: 0x7a })
@@ -66,6 +65,7 @@ const investmentResult = posNegCurrency(100000)
 const expense: Arbitrary<number> = posCurrency(10000)
 const interest: Arbitrary<number> = posCurrency(10000)
 const payment: Arbitrary<number> = fc.nat({ max: 100000 })
+const ssWitholding: Arbitrary<number> = fc.nat({ max: 10000 })
 
 const payerName: Arbitrary<string> = maxWords(3)
 
@@ -112,7 +112,7 @@ const w2: Arbitrary<types.IncomeW2> = wages.chain((income) =>
       fc.nat({ max: 2 * income }),
       fc.nat({ max: income }),
       fc.nat({ max: income }),
-      fc.nat({ max: income }),
+      ssWitholding,
       fc.nat({ max: income }),
       employer,
       w2Box12Info(income),
@@ -266,6 +266,7 @@ const scheduleK1Form1065: Arbitrary<types.ScheduleK1Form1065> = fc
     posCurrency(100000),
     posCurrency(100000),
     posCurrency(100000),
+    posCurrency(100000),
     posCurrency(100000)
   )
   .map(
@@ -273,6 +274,7 @@ const scheduleK1Form1065: Arbitrary<types.ScheduleK1Form1065> = fc
       partnershipName,
       ein,
       ordinaryBusinessIncome,
+      interestIncome,
       guaranteedPaymentsForServices,
       guaranteedPaymentsForCapital,
       selfEmploymentEarningsA,
@@ -289,6 +291,7 @@ const scheduleK1Form1065: Arbitrary<types.ScheduleK1Form1065> = fc
         isForeign: false,
         isPassive: false,
         ordinaryBusinessIncome,
+        interestIncome,
         guaranteedPaymentsForServices,
         guaranteedPaymentsForCapital,
         selfEmploymentEarningsA,
@@ -371,11 +374,22 @@ export const filingStatus: Arbitrary<types.FilingStatus> = fc.constantFrom(
 )
 
 export const person: Arbitrary<types.Person> = fc
-  .tuple(word, word, ein)
-  .map(([firstName, lastName, ssid]) => ({
+  .tuple(
+    word,
+    word,
+    ein,
+    fc.boolean(),
+    fc.date({
+      min: new Date(1900, 0, 1),
+      max: new Date()
+    })
+  )
+  .map(([firstName, lastName, ssid, isBlind, dateOfBirth]) => ({
     firstName,
     lastName,
     ssid,
+    isBlind,
+    dateOfBirth,
     role: types.PersonRole.PRIMARY
   }))
 
@@ -409,11 +423,11 @@ const questionTagArbs = {
 }
 
 export const questions: Arbitrary<Responses> = fc
-  .set(questionTag)
+  .uniqueArray(questionTag, { comparator: 'IsStrictlyEqual' })
   .chain((tags) =>
     fc
       .tuple(...tags.map((t) => questionTagArbs[t].map((v) => [t, v])))
-      .map((kvs) => Object.fromEntries(kvs))
+      .map((kvs) => Object.fromEntries(kvs) as Responses)
   )
 
 // const iraPlan: Arbitrary<IraPlanName> = fc.constantFrom(...iraPlanNames)
@@ -477,9 +491,8 @@ export class Arbitraries {
 
   qualifyingInformation = (): Arbitrary<types.QualifyingInformation> =>
     fc
-      .tuple(this.birthYear(), fc.nat({ max: 12 }), fc.boolean())
-      .map(([birthYear, numberOfMonths, isStudent]) => ({
-        birthYear,
+      .tuple(fc.nat({ max: 12 }), fc.boolean())
+      .map(([numberOfMonths, isStudent]) => ({
         numberOfMonths,
         isStudent
       }))
@@ -493,7 +506,7 @@ export class Arbitraries {
         qualifyingInfo
       }))
 
-  taxPayer = (): Arbitrary<types.TaxPayer> =>
+  taxPayer = (): Arbitrary<ValidatedTaxpayer> =>
     fc
       .tuple(
         filingStatus,
@@ -563,8 +576,8 @@ export class Arbitraries {
           coverageType,
           contributions,
           personRole,
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
+          startDate,
+          endDate,
           totalDistributions,
           qualifiedDistributions
         })
@@ -632,7 +645,15 @@ export class Arbitraries {
           repayments
         })
       )
-  information = (): Arbitrary<types.Information> =>
+
+  credit = (): Arbitrary<types.Credit> =>
+    fc.tuple(fc.nat({ max: 100000 }).map((x) => x / 100)).map(([amount]) => ({
+      recipient: types.PersonRole.PRIMARY,
+      amount,
+      type: types.CreditType.AdvanceChildTaxCredit
+    }))
+
+  information = (): Arbitrary<ValidatedInformation> =>
     fc
       .tuple(
         fc.array(f1099),
@@ -648,6 +669,7 @@ export class Arbitraries {
         questions,
         state,
         fc.array(this.healthSavingsAccount()),
+        fc.array(this.credit(), { maxLength: 2 }),
         fc.array(this.ira())
       )
       .map(
@@ -665,6 +687,7 @@ export class Arbitraries {
           questions,
           state,
           healthSavingsAccounts,
+          credits,
           individualRetirementArrangements
         ]) => ({
           f1099s,
@@ -680,9 +703,37 @@ export class Arbitraries {
           questions,
           stateResidencies: [{ state }],
           healthSavingsAccounts,
+          credits,
           individualRetirementArrangements
         })
       )
 }
 
 export const forYear = (year: number): Arbitraries => new Arbitraries(year)
+
+export const asset: Arbitrary<types.Asset> = fc
+  .tuple(
+    fc.string(),
+    fc.constantFrom<types.AssetType>('Security', 'Real Estate'),
+    fc.date(),
+    fc.nat({ max: 100000 }),
+    fc.nat({ max: 100 }),
+    fc.nat({ max: 100 })
+  )
+  .map(([name, positionType, openDate, openPrice, openFee, quantity]) => ({
+    name,
+    positionType,
+    openPrice,
+    openDate,
+    openFee,
+    quantity
+  }))
+
+export const yearsTaxesState: Arbitrary<YearsTaxesState> = fc
+  .tuple(forYear(2021).information(), fc.array(asset))
+  .map(([Y2021, assets]) => ({
+    ...blankYearTaxesState,
+    Y2021,
+    assets,
+    activeYear: 'Y2021'
+  }))
