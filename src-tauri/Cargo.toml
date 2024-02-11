@@ -1,6 +1,6 @@
 [package]
 name = "us-taxes"
-version = "0.1.21"
+version = "0.1.23"
 description = "UsTaxes is an open source webapp for filing US federal income tax. All tax calculations are performed in the browser, so no personal information is stored on external servers!"
 license = ""
 repository = ""
@@ -12,9 +12,9 @@ build = "src/build.rs"
 tauri-build = { version = "2.0.0-alpha.1", features = [] }
 
 [dependencies]
-serde_json = "1.0.95"
-serde = { version = "1.0.159", features = [ "derive" ] }
-tauri = { version = "1.0.8", features = ["api-all"] }
+serde_json = "1.0.108"
+serde = { version = "1.0.193", features = [ "derive" ] }
+tauri = { version = "1.0.9", features = ["api-all"] }
 
 [features]
 custom-protocol = [ "tauri/custom-protocol" ]
