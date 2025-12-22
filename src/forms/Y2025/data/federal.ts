@@ -88,7 +88,7 @@ const federalBrackets: FederalBrackets = {
         ]
       },
       [FilingStatus.W]: {
-        brackets: [23200, 94300, 201050, 383900, 487450, 731200],
+        brackets: [23850, 96950, 206700, 394600, 501050, 751600],
         deductions: [
           {
             name: 'Standard Deduction (Widowed)',
@@ -111,7 +111,7 @@ const federalBrackets: FederalBrackets = {
         ]
       },
       [FilingStatus.MFS]: {
-        brackets: [11600, 47150, 100525, 191950, 243725, 365600],
+        brackets: [11925, 48475, 103350, 197300, 250525, 375800],
         deductions: [
           {
             name: 'Standard Deduction (Married Filing Separately)',
@@ -142,7 +142,7 @@ const federalBrackets: FederalBrackets = {
         ]
       },
       [FilingStatus.HOH]: {
-        brackets: [16550, 63100, 100500, 191950, 243700, 609350],
+        brackets: [17000, 64850, 103350, 197300, 250500, 626350],
         deductions: [
           {
             name: 'Standard Deduction (Head of Household)',
