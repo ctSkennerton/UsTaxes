@@ -188,8 +188,8 @@ const federalBrackets: FederalBrackets = {
 }
 
 export const fica = {
-  maxSSTax: 10453.2,
-  maxIncomeSSTaxApplies: 168600,
+  maxSSTax: 10918.2,
+  maxIncomeSSTaxApplies: 176100,
 
   regularMedicareTaxRate: 1.45 / 100,
   additionalMedicareTaxRate: 0.9 / 100,
