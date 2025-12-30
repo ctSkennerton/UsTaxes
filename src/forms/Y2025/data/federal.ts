@@ -231,8 +231,8 @@ export const netInvestmentIncomeTax = {
 
 export const healthSavingsAccounts = {
   contributionLimit: {
-    'self-only': 4150,
-    family: 8300
+    'self-only': 4300,
+    family: 8550
   }
 }
 // https://www.irs.gov/newsroom/irs-provides-tax-inflation-adjustments-for-tax-year-2024
